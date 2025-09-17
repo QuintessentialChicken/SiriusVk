@@ -9,6 +9,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include "window/window.h"
+#include "window/wndProc.h"
+
 fsm::fsm_return app::updateState(signed short state) {
     switch (state) {
         case INIT_SYSTEM:
@@ -23,6 +26,10 @@ fsm::fsm_return app::updateState(signed short state) {
 }
 
 fsm::fsm_return app::init() {
+    if (!hwndMain) {
+        hwndMain = sirius::gfxWindow::createDeviceWindow();
+    }
+    sirius::gfxWindow::setWindowTitle("Sirius Vulkan");
     setState(RUN_GAME);
     return CONTINUE;
 }
