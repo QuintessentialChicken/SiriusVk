@@ -3,4 +3,6 @@ project(SiriusVk)
 
 set(CMAKE_CXX_STANDARD 23)
 
-add_executable(SiriusVk main.cpp)
+add_subdirectory(game)
+add_subdirectory(main)
+add_subdirectory(sirius)

@@ -1,0 +1,50 @@
+//
+// Created by Leon on 16/09/2025.
+//
+
+#include "app.h"
+
+#include <iostream>
+#include <optional>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+fsm::fsm_return app::updateState(signed short state) {
+    switch (state) {
+        case INIT_SYSTEM:
+            return init();
+        case RUN_GAME:
+            return runGame();
+        case SHUTDOWN_SYSTEM:
+            return shutdown();
+        default:
+            return UNHANDLED;
+    }
+}
+
+fsm::fsm_return app::init() {
+    setState(RUN_GAME);
+    return CONTINUE;
+}
+
+fsm::fsm_return app::shutdown() {
+    return EXIT;
+}
+
+fsm::fsm_return app::runGame() {
+    MSG message;
+    std::optional<int> exitCode = {};
+    if (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
+        if (message.message == WM_QUIT) {
+            exitCode = static_cast<int>(message.wParam);
+            std::cout << "Exiting" << std::endl;
+        }
+        TranslateMessage(&message);
+        DispatchMessage(&message);
+    }
+    if (exitCode == 0) {
+        setState(SHUTDOWN_SYSTEM);
+        return CONTINUE;
+    }
+    return CONTINUE;
+}
