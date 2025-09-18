@@ -7,6 +7,9 @@
 #include <iostream>
 #include <optional>
 
+#include "graphics/device.h"
+#include "graphics/pipeline.h"
+#include "graphics/swapchain.h"
 #include "window/window.h"
 #include "window/wndProc.h"
 
@@ -28,6 +31,7 @@ fsm::fsm_return app::init() {
         hwndMain = sirius::srsWindow::createDeviceWindow();
     }
     sirius::srsWindow::setWindowTitle("Sirius Vulkan");
+    renderer = std::make_unique<sirius::srsRenderer>();
     setState(RUN_GAME);
     return CONTINUE;
 }
@@ -51,5 +55,6 @@ fsm::fsm_return app::runGame() {
         setState(SHUTDOWN_SYSTEM);
         return CONTINUE;
     }
+    renderer->drawFrame();
     return CONTINUE;
 }

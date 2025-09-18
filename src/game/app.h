@@ -5,6 +5,7 @@
 #pragma once
 
 #include "core/fsm.h"
+#include "graphics/renderer.h"
 
 class app : public fsm {
 public:
@@ -24,6 +25,7 @@ public:
 
     fsm_return runGame();
 private:
+    std::unique_ptr<sirius::srsRenderer> renderer;
     bool isSystemInitialized = false;
 };
 

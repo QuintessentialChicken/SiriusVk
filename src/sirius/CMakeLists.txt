@@ -4,6 +4,7 @@ target_link_libraries(engine INTERFACE
         core
         graphics
         window
+        Vulkan::Vulkan
 )
 
 add_subdirectory(core)

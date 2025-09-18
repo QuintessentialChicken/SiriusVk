@@ -4,6 +4,8 @@
 
 #include "entrypoint_engine.h"
 
+#include "../graphics/device.h"
+
 static int g_MainReturnValue = 0;
 
 static bool callMainOnce()
