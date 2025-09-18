@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace sirius {
-    class gfxWindow;
+    class srsWindow;
 
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities;
@@ -19,7 +19,7 @@ namespace sirius {
         bool isComplete() { return graphicsFamilyHasValue && presentFamilyHasValue; }
     };
 
-    class gfxDevice {
+    class srsDevice {
     public:
 #ifdef NDEBUG
         const bool enableValidationLayers = false;
@@ -27,18 +27,25 @@ namespace sirius {
         const bool enableValidationLayers = true;
 #endif
 
-        explicit gfxDevice(gfxWindow& window);
+        explicit srsDevice();
 
-        ~gfxDevice();
+        ~srsDevice();
 
         // Not copyable or movable
-        gfxDevice(const gfxDevice&) = delete;
+        srsDevice(const srsDevice&) = delete;
 
-        void operator=(const gfxDevice&) = delete;
+        VkExtent2D getExtent() {
+            return VkExtent2D{
+                static_cast<uint32_t>(800),
+                static_cast<uint32_t>(600)
+            };
+        };
 
-        gfxDevice(gfxDevice&&) = delete;
+        void operator=(const srsDevice&) = delete;
 
-        gfxDevice& operator=(gfxDevice&&) = delete;
+        srsDevice(srsDevice&&) = delete;
+
+        srsDevice& operator=(srsDevice&&) = delete;
 
         VkCommandPool getCommandPool() { return commandPool; }
         VkDevice device() { return device_; }
@@ -113,7 +120,6 @@ namespace sirius {
         VkInstance instance;
         VkDebugUtilsMessengerEXT debugMessenger;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-        gfxWindow& window;
         VkCommandPool commandPool;
 
         VkDevice device_;

@@ -2,8 +2,8 @@
 // Created by Leon on 17/09/2025.
 //
 
-#ifndef SIRIUSVK_WNDPROC_H
-#define SIRIUSVK_WNDPROC_H
+#pragma once
+
 
 #define WIN32_LEAN_AND_MEAN
 #include <string>
@@ -18,4 +18,3 @@ inline std::string windowTitle;
 inline int windowWidth = 800;
 inline int windowHeight = 600;
 
-#endif //SIRIUSVK_WNDPROC_H

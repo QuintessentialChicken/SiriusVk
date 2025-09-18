@@ -2,8 +2,8 @@
 // Created by Leon on 16/09/2025.
 //
 
-#ifndef SIRIUSVK_APP_H
-#define SIRIUSVK_APP_H
+#pragma once
+
 #include "core/fsm.h"
 
 class app : public fsm {
@@ -28,4 +28,3 @@ private:
 };
 
 
-#endif //SIRIUSVK_APP_H

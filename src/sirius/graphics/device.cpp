@@ -6,7 +6,6 @@
 #include <set>
 #include <unordered_set>
 
-#include "window/window.h"
 #include "window/wndProc.h"
 #include <vulkan/vulkan_win32.h>
 
@@ -50,7 +49,7 @@ void DestroyDebugUtilsMessengerEXT(
 }
 
 // class member functions
-gfxDevice::gfxDevice(gfxWindow& window) : window{window} {
+srsDevice::srsDevice() {
     createInstance();
     setupDebugMessenger();
     createSurface();
@@ -59,7 +58,7 @@ gfxDevice::gfxDevice(gfxWindow& window) : window{window} {
     createCommandPool();
 }
 
-gfxDevice::~gfxDevice() {
+srsDevice::~srsDevice() {
     vkDestroyCommandPool(device_, commandPool, nullptr);
     vkDestroyDevice(device_, nullptr);
 
@@ -71,7 +70,7 @@ gfxDevice::~gfxDevice() {
     vkDestroyInstance(instance, nullptr);
 }
 
-void gfxDevice::createInstance() {
+void srsDevice::createInstance() {
     if (enableValidationLayers && !checkValidationLayerSupport()) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
@@ -111,7 +110,7 @@ void gfxDevice::createInstance() {
     hasGflwRequiredInstanceExtensions();
 }
 
-void gfxDevice::pickPhysicalDevice() {
+void srsDevice::pickPhysicalDevice() {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
     if (deviceCount == 0) {
@@ -136,7 +135,7 @@ void gfxDevice::pickPhysicalDevice() {
     std::cout << "physical device: " << properties.deviceName << std::endl;
 }
 
-void gfxDevice::createLogicalDevice() {
+void srsDevice::createLogicalDevice() {
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -182,7 +181,7 @@ void gfxDevice::createLogicalDevice() {
     vkGetDeviceQueue(device_, indices.presentFamily, 0, &presentQueue_);
 }
 
-void gfxDevice::createCommandPool() {
+void srsDevice::createCommandPool() {
     QueueFamilyIndices queueFamilyIndices = findPhysicalQueueFamilies();
 
     VkCommandPoolCreateInfo poolInfo = {};
@@ -196,7 +195,7 @@ void gfxDevice::createCommandPool() {
     }
 }
 
-void gfxDevice::createSurface() {
+void srsDevice::createSurface() {
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     createInfo.hwnd = hwndMain;
@@ -207,7 +206,7 @@ void gfxDevice::createSurface() {
     std::cout << "Vulkan: Surface created\n" << std::endl;
 }
 
-bool gfxDevice::isDeviceSuitable(VkPhysicalDevice device) {
+bool srsDevice::isDeviceSuitable(VkPhysicalDevice device) {
     QueueFamilyIndices indices = findQueueFamilies(device);
 
     bool extensionsSupported = checkDeviceExtensionSupport(device);
@@ -225,7 +224,7 @@ bool gfxDevice::isDeviceSuitable(VkPhysicalDevice device) {
            supportedFeatures.samplerAnisotropy;
 }
 
-void gfxDevice::populateDebugMessengerCreateInfo(
+void srsDevice::populateDebugMessengerCreateInfo(
     VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -238,7 +237,7 @@ void gfxDevice::populateDebugMessengerCreateInfo(
     createInfo.pUserData = nullptr; // Optional
 }
 
-void gfxDevice::setupDebugMessenger() {
+void srsDevice::setupDebugMessenger() {
     if (!enableValidationLayers) return;
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
     populateDebugMessengerCreateInfo(createInfo);
@@ -247,7 +246,7 @@ void gfxDevice::setupDebugMessenger() {
     }
 }
 
-bool gfxDevice::checkValidationLayerSupport() {
+bool srsDevice::checkValidationLayerSupport() {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -272,7 +271,7 @@ bool gfxDevice::checkValidationLayerSupport() {
     return true;
 }
 
-std::vector<const char*> gfxDevice::getRequiredExtensions() {
+std::vector<const char*> srsDevice::getRequiredExtensions() {
     std::vector requiredExtensions = {
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
@@ -286,7 +285,7 @@ std::vector<const char*> gfxDevice::getRequiredExtensions() {
     return requiredExtensions;
 }
 
-void gfxDevice::hasGflwRequiredInstanceExtensions() {
+void srsDevice::hasGflwRequiredInstanceExtensions() {
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> extensions(extensionCount);
@@ -309,7 +308,7 @@ void gfxDevice::hasGflwRequiredInstanceExtensions() {
     }
 }
 
-bool gfxDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+bool srsDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
@@ -329,7 +328,7 @@ bool gfxDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
     return requiredExtensions.empty();
 }
 
-QueueFamilyIndices gfxDevice::findQueueFamilies(VkPhysicalDevice device) {
+QueueFamilyIndices srsDevice::findQueueFamilies(VkPhysicalDevice device) {
     QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
@@ -360,7 +359,7 @@ QueueFamilyIndices gfxDevice::findQueueFamilies(VkPhysicalDevice device) {
     return indices;
 }
 
-SwapChainSupportDetails gfxDevice::querySwapChainSupport(VkPhysicalDevice device) {
+SwapChainSupportDetails srsDevice::querySwapChainSupport(VkPhysicalDevice device) {
     SwapChainSupportDetails details;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_, &details.capabilities);
 
@@ -386,7 +385,7 @@ SwapChainSupportDetails gfxDevice::querySwapChainSupport(VkPhysicalDevice device
     return details;
 }
 
-VkFormat gfxDevice::findSupportedFormat(
+VkFormat srsDevice::findSupportedFormat(
     const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
     for (VkFormat format : candidates) {
         VkFormatProperties props;
@@ -402,7 +401,7 @@ VkFormat gfxDevice::findSupportedFormat(
     throw std::runtime_error("failed to find supported format!");
 }
 
-uint32_t gfxDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t srsDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -415,7 +414,7 @@ uint32_t gfxDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags pr
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void gfxDevice::createBuffer(
+void srsDevice::createBuffer(
     VkDeviceSize size,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags properties,
@@ -446,7 +445,7 @@ void gfxDevice::createBuffer(
     vkBindBufferMemory(device_, buffer, bufferMemory, 0);
 }
 
-VkCommandBuffer gfxDevice::beginSingleTimeCommands() {
+VkCommandBuffer srsDevice::beginSingleTimeCommands() {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -464,7 +463,7 @@ VkCommandBuffer gfxDevice::beginSingleTimeCommands() {
     return commandBuffer;
 }
 
-void gfxDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+void srsDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
@@ -478,7 +477,7 @@ void gfxDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
 }
 
-void gfxDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void srsDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkBufferCopy copyRegion{};
@@ -490,7 +489,7 @@ void gfxDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize 
     endSingleTimeCommands(commandBuffer);
 }
 
-void gfxDevice::copyBufferToImage(
+void srsDevice::copyBufferToImage(
     VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -517,7 +516,7 @@ void gfxDevice::copyBufferToImage(
     endSingleTimeCommands(commandBuffer);
 }
 
-void gfxDevice::createImageWithInfo(
+void srsDevice::createImageWithInfo(
     const VkImageCreateInfo& imageInfo,
     VkMemoryPropertyFlags properties,
     VkImage& image,

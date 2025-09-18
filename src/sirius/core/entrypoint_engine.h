@@ -2,8 +2,8 @@
 // Created by Leon on 16/09/2025.
 //
 
-#ifndef SIRIUSVK_ENTRYPOINT_ENGINE_H
-#define SIRIUSVK_ENTRYPOINT_ENGINE_H
+#pragma once
+
 
 
 extern bool (*g_pProjectMainPrologue)();
@@ -21,4 +21,3 @@ g_pProjectMainOrDoOneLoop = loop; \
 } app_entry_point_setter_instance; \
 
 
-#endif //SIRIUSVK_ENTRYPOINT_ENGINE_H

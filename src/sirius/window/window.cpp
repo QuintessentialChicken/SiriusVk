@@ -12,7 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 namespace sirius {
-HWND gfxWindow::createDeviceWindow() {
+HWND srsWindow::createDeviceWindow() {
     if (!winClass) {
         hInstance = GetModuleHandle(nullptr);
         WNDCLASSEX wc{};
@@ -65,7 +65,7 @@ HWND gfxWindow::createDeviceWindow() {
     return result;
 }
 
-LRESULT gfxWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
+LRESULT srsWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
     switch (msg) {
         case WM_CLOSE:
             PostQuitMessage(EXIT_SUCCESS);
@@ -82,9 +82,9 @@ LRESULT gfxWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
     return g_WindowProc(hWnd, msg, wParam, lParam);
 }
 
-void gfxWindow::setWindowTitle(const std::string& title) {
+void srsWindow::setWindowTitle(const std::string& title) {
 }
 
-void gfxWindow::setBackgroundColor(float r, float g, float b, float a) {
+void srsWindow::setBackgroundColor(float r, float g, float b, float a) {
 }
 }

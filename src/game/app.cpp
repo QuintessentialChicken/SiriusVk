@@ -6,8 +6,6 @@
 
 #include <iostream>
 #include <optional>
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
 #include "window/window.h"
 #include "window/wndProc.h"
@@ -27,9 +25,9 @@ fsm::fsm_return app::updateState(signed short state) {
 
 fsm::fsm_return app::init() {
     if (!hwndMain) {
-        hwndMain = sirius::gfxWindow::createDeviceWindow();
+        hwndMain = sirius::srsWindow::createDeviceWindow();
     }
-    sirius::gfxWindow::setWindowTitle("Sirius Vulkan");
+    sirius::srsWindow::setWindowTitle("Sirius Vulkan");
     setState(RUN_GAME);
     return CONTINUE;
 }

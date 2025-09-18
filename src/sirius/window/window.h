@@ -2,14 +2,14 @@
 // Created by Leon on 17/09/2025.
 //
 
-#ifndef SIRIUSVK_WINDOW_H
-#define SIRIUSVK_WINDOW_H
+#pragma once
+
 #define WIN32_LEAN_AND_MEAN
 #include <string>
 #include <Windows.h>
 
 namespace sirius {
-    class gfxWindow {
+    class srsWindow {
     public:
         static HWND createDeviceWindow();
         static void setWindowTitle(const std::string& title);
@@ -19,4 +19,3 @@ namespace sirius {
     };
 }
 
-#endif //SIRIUSVK_WINDOW_H

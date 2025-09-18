@@ -2,8 +2,8 @@
 // Created by Leon on 16/09/2025.
 //
 
-#ifndef SIRIUSVK_FSM_H
-#define SIRIUSVK_FSM_H
+#pragma once
+
 
 
 class fsm {
@@ -32,4 +32,3 @@ private:
 };
 
 
-#endif //SIRIUSVK_FSM_H

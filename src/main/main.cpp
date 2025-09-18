@@ -1,6 +1,6 @@
 #include <cassert>
 #include <iostream>
-#include "Core/Entrypoint_Engine.h"
+#include "core/entrypoint_engine.h"
 
 #include "game/app.h"
 //
