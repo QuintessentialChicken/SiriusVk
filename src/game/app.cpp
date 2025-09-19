@@ -31,7 +31,7 @@ fsm::fsm_return app::init() {
         hwndMain = sirius::srsWindow::createDeviceWindow();
     }
     sirius::srsWindow::setWindowTitle("Sirius Vulkan");
-    renderer = std::make_unique<sirius::srsRenderer>();
+    renderer = std::make_unique<sirius::srsVkRenderer>();
     setState(RUN_GAME);
     return CONTINUE;
 }

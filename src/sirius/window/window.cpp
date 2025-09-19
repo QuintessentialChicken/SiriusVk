@@ -71,7 +71,6 @@ LRESULT srsWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
             PostQuitMessage(EXIT_SUCCESS);
             break;
         case WM_KILLFOCUS:
-            // kbd.ClearState();
             break;
         case WM_SIZE:
             windowWidth = LOWORD(lParam);

@@ -9,10 +9,12 @@ add_library(graphics STATIC
         pipeline.h
         swapchain.cpp
         swapchain.h
-        renderer.cpp
-        renderer.h
+        vkRenderer.cpp
+        vkRenderer.h
         model.cpp
         model.h
+        renderer.cpp
+        renderer.h
 )
 
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
