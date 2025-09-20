@@ -10,3 +10,4 @@ target_link_libraries(engine INTERFACE
 add_subdirectory(core)
 add_subdirectory(graphics)
 add_subdirectory(window)
+add_subdirectory(shaders)

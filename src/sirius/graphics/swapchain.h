@@ -3,15 +3,20 @@
 #include "device.h"
 
 // std lib headers
+#include <memory>
 #include <string>
 #include <vector>
+
+#include "model.h"
 
 namespace sirius {
 class srsSwapchain {
 public:
-    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+    static constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 
     srsSwapchain(srsDevice& deviceRef, VkExtent2D windowExtent);
+
+    srsSwapchain(srsDevice& deviceRef, VkExtent2D windowExtent, std::shared_ptr<srsSwapchain> oldSwapchain);
 
     ~srsSwapchain();
 
@@ -39,6 +44,8 @@ public:
     VkResult submitCommandBuffers(const VkCommandBuffer* buffers, uint32_t* imageIndex);
 
 private:
+    void init();
+
     void createSwapchain();
 
     void createImageViews();
@@ -76,6 +83,7 @@ private:
     VkExtent2D windowExtent;
 
     VkSwapchainKHR swapchain;
+    std::shared_ptr<srsSwapchain> oldSwapchain;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;

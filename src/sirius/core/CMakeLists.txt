@@ -3,4 +3,6 @@ add_library(core STATIC
         fsm.h
         entrypoint_engine.cpp
         entrypoint_engine.h
+        object.cpp
+        object.h
 )

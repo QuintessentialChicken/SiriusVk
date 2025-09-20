@@ -5,16 +5,23 @@
 #include "vkRenderer.h"
 
 #include <array>
+#include <iostream>
+#include <ostream>
 #include <stdexcept>
 
 #include "model.h"
 #include "pipeline.h"
 #include "window/wndProc.h"
 
-namespace sirius
-{
+namespace sirius {
+struct SimplePushConstantData {
+    glm::mat2 transform{1.0f};
+    glm::vec2 offset;
+    alignas(16) glm::vec3 color;
+};
+
 srsVkRenderer::srsVkRenderer() {
-    loadModels();
+    loadObjects();
     createPipelineLayout();
     recreateSwapchain();
     createCommandBuffers();
@@ -26,19 +33,28 @@ srsVkRenderer::~srsVkRenderer() {
 }
 
 void srsVkRenderer::createPipelineLayout() {
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(SimplePushConstantData);
+
     VkPipelineLayoutCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineInfo.setLayoutCount = 0;
     pipelineInfo.pSetLayouts = nullptr;
-    pipelineInfo.pushConstantRangeCount = 0;
-    pipelineInfo.pPushConstantRanges = nullptr;
+    pipelineInfo.pushConstantRangeCount = 1;
+    pipelineInfo.pPushConstantRanges = &pushConstantRange;
     if (vkCreatePipelineLayout(device.device(), &pipelineInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
 }
 
 void srsVkRenderer::createPipeline() {
-    auto pipelineConfig = srsPipeline::getDefaultPipelineConfigInfo(swapchain->width(), swapchain->height());
+    assert(swapchain != nullptr && "cannot create pipeline before swapchain");
+    assert(pipelineLayout != nullptr && "cannot create pipeline before pipeline layout");
+
+    PipelineConfigInfo pipelineConfig{};
+    srsPipeline::getDefaultPipelineConfigInfo(pipelineConfig);
     pipelineConfig.renderPass = swapchain->getRenderPass();
     pipelineConfig.pipelineLayout = pipelineLayout;
     pipeline = std::make_unique<srsPipeline>(device, "../../src/sirius/shaders/simple_shader.vert.spv", "../../src/sirius/shaders/simple_shader.frag.spv", pipelineConfig);
@@ -75,16 +91,25 @@ void srsVkRenderer::recordCommandBuffers(int imageIndex) {
     renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
 
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+    clearValues[0].color = {0.01f, 0.01f, 0.01f, 1.0f};
     clearValues[1].depthStencil = {1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    pipeline->bind(commandBuffers[imageIndex]);
-    model->bind(commandBuffers[imageIndex]);
-    model->draw(commandBuffers[imageIndex]);
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapchain->getSwapchainExtent().width);
+    viewport.height = static_cast<float>(swapchain->getSwapchainExtent().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    VkRect2D scissor{{0, 0}, swapchain->getSwapchainExtent()};
+    vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
+    vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
+
+    renderObjects(commandBuffers[imageIndex]);
 
     vkCmdEndRenderPass(commandBuffers[imageIndex]);
     if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS) {
@@ -95,8 +120,22 @@ void srsVkRenderer::recordCommandBuffers(int imageIndex) {
 void srsVkRenderer::recreateSwapchain() {
     VkExtent2D extend = {static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
     vkDeviceWaitIdle(device.device());
-    swapchain = std::make_unique<srsSwapchain>(device, extend);
+
+    if (swapchain == nullptr) {
+        swapchain = std::make_unique<srsSwapchain>(device, extend);
+    } else {
+        swapchain = std::make_unique<srsSwapchain>(device, extend, std::move(swapchain));
+        if (swapchain->imageCount() != commandBuffers.size()) {
+            freeCommandBuffers();
+            createCommandBuffers();
+        }
+    }
     createPipeline();
+}
+
+void srsVkRenderer::freeCommandBuffers() {
+    vkFreeCommandBuffers(device.device(), device.getCommandPool(), static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+    commandBuffers.clear();
 }
 
 void srsVkRenderer::drawFrame() {
@@ -122,12 +161,34 @@ void srsVkRenderer::drawFrame() {
     }
 }
 
-void srsVkRenderer::loadModels() {
+void srsVkRenderer::loadObjects() {
     std::vector<srsModel::Vertex> vertices = {
         {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
     };
-    model = std::make_unique<srsModel>(device, vertices);
+    auto model = std::make_shared<srsModel>(device, vertices);
+
+    auto triangle = srsObject::createObject();
+    triangle.model = model;
+    triangle.color = {0.1f, 0.8f, 0.1f};
+    triangle.transform2d.translation.x = 0.2f;
+
+    objects.emplace_back(std::move(triangle));
+}
+
+void srsVkRenderer::renderObjects(VkCommandBuffer commandBuffer) {
+    pipeline->bind(commandBuffer);
+
+    for (auto& obj: objects) {
+        SimplePushConstantData pushConstantData{};
+        pushConstantData.offset = obj.transform2d.translation;
+        pushConstantData.color = obj.color;
+        pushConstantData.transform = obj.transform2d.mat2();
+
+        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SimplePushConstantData), &pushConstantData);
+        obj.model->bind(commandBuffer);
+        obj.model->draw(commandBuffer);
+    }
 }
 }

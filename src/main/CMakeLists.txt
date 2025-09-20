@@ -3,6 +3,8 @@ add_executable(main
         ${CMAKE_SOURCE_DIR}/sirius.rc
 )
 
+add_dependencies(main shaders)
+
 target_link_libraries(main PRIVATE
         game
         engine
