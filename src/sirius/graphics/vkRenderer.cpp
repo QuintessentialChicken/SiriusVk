@@ -5,9 +5,12 @@
 #include "vkRenderer.h"
 
 #include <array>
-#include <iostream>
 #include <ostream>
 #include <stdexcept>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 #include "model.h"
 #include "pipeline.h"
@@ -152,13 +155,17 @@ void srsVkRenderer::drawFrame() {
 
     recordCommandBuffers(imageIndex);
     result = swapchain->submitCommandBuffers(&commandBuffers[imageIndex], &imageIndex);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    if (!closing && (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)) {
         recreateSwapchain();
         return;
     }
     if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
+}
+
+void srsVkRenderer::shutdown() {
+    vkDeviceWaitIdle(device.device());
 }
 
 void srsVkRenderer::loadObjects() {
@@ -168,19 +175,36 @@ void srsVkRenderer::loadObjects() {
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
     };
     auto model = std::make_shared<srsModel>(device, vertices);
-
-    auto triangle = srsObject::createObject();
-    triangle.model = model;
-    triangle.color = {0.1f, 0.8f, 0.1f};
-    triangle.transform2d.translation.x = 0.2f;
-
-    objects.emplace_back(std::move(triangle));
+    std::vector<glm::vec3> colors{
+        {1.f, .7f, .73f},
+        {1.f, .87f, .73f},
+        {1.f, 1.f, .73f},
+        {.73f, 1.f, .8f},
+        {.73, .88f, 1.f} //
+    };
+    for (auto& color : colors) {
+        color = glm::pow(color, glm::vec3{2.2f});
+    }
+    for (int i = 0; i < 40; i++) {
+        auto triangle = srsObject::createObject();
+        triangle.model = model;
+        triangle.transform2d.scale = glm::vec2(.5f) + i * 0.025f;
+        triangle.transform2d.rotation = i * glm::pi<float>() * .025f;
+        triangle.color = colors[i % colors.size()];
+        objects.emplace_back(std::move(triangle));
+    }
 }
 
 void srsVkRenderer::renderObjects(VkCommandBuffer commandBuffer) {
+    int i = 0;
+    for (auto& obj : objects) {
+        i += 1;
+        obj.transform2d.rotation =
+            glm::mod<float>(obj.transform2d.rotation + 0.0005f * i, 2.f * glm::pi<float>());
+    }
     pipeline->bind(commandBuffer);
 
-    for (auto& obj: objects) {
+    for (auto& obj : objects) {
         SimplePushConstantData pushConstantData{};
         pushConstantData.offset = obj.transform2d.translation;
         pushConstantData.color = obj.color;

@@ -37,6 +37,7 @@ fsm::fsm_return app::init() {
 }
 
 fsm::fsm_return app::shutdown() {
+    renderer->shutdown();
     return EXIT;
 }
 

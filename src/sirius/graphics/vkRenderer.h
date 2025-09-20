@@ -5,9 +5,7 @@
 #pragma once
 
 #include <memory>
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
+
 
 
 #include "device.h"
@@ -24,6 +22,7 @@ public:
     srsVkRenderer();
     ~srsVkRenderer();
     void drawFrame();
+    void shutdown();
 
 private:
     void loadObjects();

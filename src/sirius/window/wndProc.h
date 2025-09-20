@@ -17,4 +17,5 @@ inline unsigned winClass;
 inline std::string windowTitle;
 inline int windowWidth = 800;
 inline int windowHeight = 600;
+inline bool closing = false;
 
