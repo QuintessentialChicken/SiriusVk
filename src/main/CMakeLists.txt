@@ -8,6 +8,7 @@ add_dependencies(main shaders)
 target_link_libraries(main PRIVATE
         game
         engine
+        fmt::fmt
 )
 
 target_include_directories(main PRIVATE

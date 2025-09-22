@@ -11,4 +11,4 @@ add_library(graphics STATIC
 
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
 
-target_link_libraries(graphics PRIVATE Vulkan::Vulkan fmt::fmt)
+target_link_libraries(graphics PUBLIC Vulkan::Vulkan fmt::fmt vma)

@@ -6,7 +6,9 @@
 
 
 namespace sirius {
-srsVkRenderer renderer::vkRenderer = srsVkRenderer{};
+srsVkRenderer srsRenderer::vkRenderer = srsVkRenderer{};
 
-void renderer::init() {}
+void srsRenderer::init() {
+    vkRenderer.init();
+}
 }

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <optional>
 
+#include "graphics/renderer.h"
 #include "window/window.h"
 #include "window/wndProc.h"
 
@@ -28,6 +29,7 @@ fsm::fsm_return app::init() {
         hwndMain = sirius::srsWindow::createDeviceWindow();
     }
     sirius::srsWindow::setWindowTitle("Sirius Vulkan");
+    sirius::srsRenderer::init();
     setState(RUN_GAME);
     return CONTINUE;
 }

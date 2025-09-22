@@ -5,3 +5,5 @@ add_library(core STATIC
         entrypoint_engine.h
         types.h
 )
+
+target_link_libraries(core PRIVATE fmt::fmt)

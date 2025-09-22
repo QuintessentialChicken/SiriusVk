@@ -4,13 +4,17 @@
 
 #pragma once
 
+
+#include "core/types.h"
 #include <deque>
 #include <functional>
 #include <optional>
 #include <vulkan/vulkan_core.h>
+
 namespace sirius {
-class DeletionQueue
+class deletionQueue
 {
+public:
     std::deque<std::function<void()>> deletors;
 
     void push_function(std::function<void()>&& function) {
@@ -27,14 +31,14 @@ class DeletionQueue
     }
 };
 
-struct FrameData {
-    VkSemaphore _swapchainSemaphore, _renderSemaphore;
-    VkFence _renderFence;
+struct frameData {
+    VkSemaphore swapchainSemaphore, renderSemaphore;
+    VkFence renderFence;
 
-    VkCommandPool _commandPool;
-    VkCommandBuffer _mainCommandBuffer;
+    VkCommandPool commandPool;
+    VkCommandBuffer mainCommandBuffer;
 
-    DeletionQueue _deletionQueue;
+    deletionQueue deletionQueue;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -43,6 +47,8 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 class srsVkRenderer {
 public:
     void init();
+
+    void draw();
 
     void shutdown();
 
@@ -101,6 +107,12 @@ private:
 
     void initCommandBuffers();
 
+    void initSyncObjects();
+
+    void initAllocator();
+
+
+
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -113,10 +125,15 @@ private:
     VkFormat swapChainImageFormat = {};
     VkExtent2D swapChainExtent = {};
 
-    int frameNumber {0};
-    FrameData frames[FRAME_OVERLAP];
-    FrameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+    // VmaAllocator allocator;
 
+    bool isInitialized = false;
+
+    int frameNumber {0};
+    frameData frames[FRAME_OVERLAP] {};
+    frameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+
+    deletionQueue mainDeletionQueue;
 
 };
 }

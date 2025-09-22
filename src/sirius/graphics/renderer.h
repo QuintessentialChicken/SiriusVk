@@ -6,7 +6,7 @@
 #include "vkRenderer.h"
 
 namespace sirius {
-class renderer {
+class srsRenderer {
 public:
     static void init();
 private:

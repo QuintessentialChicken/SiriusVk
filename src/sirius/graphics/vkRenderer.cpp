@@ -10,14 +10,15 @@
 #include <iostream>
 #include <set>
 
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
 #include "window/wndProc.h"
 #include <vulkan/vulkan_win32.h>
-
-#include "core/types.h"
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -40,9 +41,43 @@ void srsVkRenderer::init() {
     createLogicalDevice();
     createSwapChain();
     initCommandBuffers();
+    initSyncObjects();
+    isInitialized = true;
+}
+
+void srsVkRenderer::draw() {
+    VK_CHECK(vkWaitForFences(device, 1, &getCurrentFrame().renderFence, true, 1000000000));
+    VK_CHECK(vkResetFences(device, 1, &getCurrentFrame().renderFence));
+
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, getCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+    VkCommandBuffer cmd = getCurrentFrame().mainCommandBuffer;
+    VK_CHECK(vkResetCommandBuffer(cmd, 0));
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+    beginInfo.pNext = nullptr;
+
+    VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 }
 
 void srsVkRenderer::shutdown() {
+    if (isInitialized) {
+        vkDeviceWaitIdle(device);
+
+        for (int i = 0; i < FRAME_OVERLAP; i++) {
+            vkDestroyCommandPool(device, frames[i].commandPool, nullptr);
+
+            vkDestroyFence(device, frames[i].renderFence, nullptr);
+            vkDestroySemaphore(device, frames[i].renderSemaphore, nullptr);
+            vkDestroySemaphore(device, frames[i].swapchainSemaphore, nullptr);
+
+            frames[i].deletionQueue.flush();
+        }
+        mainDeletionQueue.flush();
+    }
 }
 
 bool srsVkRenderer::checkValidationLayerSupport() {
@@ -394,17 +429,46 @@ void srsVkRenderer::initCommandBuffers() {
 
     for (int i = 0; i < FRAME_OVERLAP; i++) {
 
-        VK_CHECK(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &frames[i]._commandPool));
+        VK_CHECK(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &frames[i].commandPool));
 
         // allocate the default command buffer that we will use for rendering
         VkCommandBufferAllocateInfo cmdAllocInfo = {};
         cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmdAllocInfo.pNext = nullptr;
-        cmdAllocInfo.commandPool = frames[i]._commandPool;
+        cmdAllocInfo.commandPool = frames[i].commandPool;
         cmdAllocInfo.commandBufferCount = 1;
         cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-        VK_CHECK(vkAllocateCommandBuffers(device, &cmdAllocInfo, &frames[i]._mainCommandBuffer));
+        VK_CHECK(vkAllocateCommandBuffers(device, &cmdAllocInfo, &frames[i].mainCommandBuffer));
     }
+}
+
+void srsVkRenderer::initSyncObjects() {
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    for (int i = 0; i < FRAME_OVERLAP; i++) {
+        VK_CHECK(vkCreateFence(device, &fenceInfo, nullptr, &frames[i].renderFence));
+
+        VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frames[i].swapchainSemaphore));
+        VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frames[i].renderSemaphore));
+    }
+}
+
+void srsVkRenderer::initAllocator() {
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = physicalDevice;
+    allocatorInfo.device = device;
+    allocatorInfo.instance = instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    // vmaCreateAllocator(&allocatorInfo, &allocator);
+    //
+    // mainDeletionQueue.push_function([&]() {
+    //     vmaDestroyAllocator(allocator);
+    // });
 }
 }

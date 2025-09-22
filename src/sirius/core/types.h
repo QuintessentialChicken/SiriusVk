@@ -6,6 +6,15 @@
 
 #include <fmt/core.h>
 #include <vulkan/vk_enum_string_helper.h>
+#include "vk_mem_alloc.h"
+
+struct AllocatedImage {
+    VkImage image;
+    VkImageView imageView;
+    VmaAllocation allocation;
+    VkExtent3D imageExtent;
+    VkFormat imageFormat;
+};
 
 
 #define VK_CHECK(x)                                                     \
