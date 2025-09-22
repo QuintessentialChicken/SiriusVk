@@ -25,7 +25,6 @@ public:
 
     fsm_return runGame();
 private:
-    std::unique_ptr<sirius::srsVkRenderer> renderer;
     bool isSystemInitialized = false;
 };
 

@@ -4,6 +4,7 @@
 
 #include "renderer.h"
 
+
 namespace sirius {
 srsVkRenderer renderer::vkRenderer = srsVkRenderer{};
 
