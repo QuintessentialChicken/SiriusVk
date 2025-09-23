@@ -50,25 +50,36 @@ void srsVkRenderer::init() {
 
 void srsVkRenderer::draw() {
     VK_CHECK(vkWaitForFences(device, 1, &getCurrentFrame().renderFence, true, 1000000000));
-    VK_CHECK(vkResetFences(device, 1, &getCurrentFrame().renderFence));
+
+    getCurrentFrame().deletionQueue.flush();
 
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, getCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
 
+    VK_CHECK(vkResetFences(device, 1, &getCurrentFrame().renderFence));
+
     VkCommandBuffer cmd = getCurrentFrame().mainCommandBuffer;
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
+
+
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr;
     beginInfo.pNext = nullptr;
 
+
+    drawExtent.width = drawImage.imageExtent.width;
+    drawExtent.height = drawImage.imageExtent.height;
+
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
-    // Transition the swapchain image into writeable mode before rendering
-    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-    //make a clear-color from frame number. This will flash with a 120 frame period.
+
+    // transition our main draw image into general layout so we can write into it
+    // we will overwrite it all so we dont care about what was the older layout
+    utils::transitionImage(device, cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
     VkClearColorValue clearValue;
     float flash = std::abs(std::sin(static_cast<float>(frameNumber) / 120.f));
     clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
@@ -81,10 +92,18 @@ void srsVkRenderer::draw() {
     clearRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
     //clear image
-    vkCmdClearColorImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+    vkCmdClearColorImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+    // draw_background(cmd);
 
-    //Transition the swapchain image into presentable mode
-    utils::transitionImage(cmd, swapChainImages[imageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    //transition the draw image and the swapchain image into their correct transfer layouts
+    utils::transitionImage(device, cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    utils::transitionImage(device, cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    // execute a copy from the draw image into the swapchain
+    utils::copyImageToImage(cmd, drawImage.image, swapChainImages[imageIndex], drawExtent, swapChainExtent);
+
+    // set swapchain image layout to Present so we can show it on the screen
+    utils::transitionImage(device, cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
     VK_CHECK(vkEndCommandBuffer(cmd));
@@ -93,7 +112,7 @@ void srsVkRenderer::draw() {
     cmdBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
     cmdBufferInfo.pNext = nullptr;
     cmdBufferInfo.deviceMask = 0;
-    VkCommandBufferSubmitInfo cmdinfo = cmdBufferInfo;
+    cmdBufferInfo.commandBuffer = cmd;
 
     VkSemaphoreSubmitInfo waitSemaphoreInfo{};
     waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -111,9 +130,6 @@ void srsVkRenderer::draw() {
     signalSemaphoreInfo.deviceIndex = 0;
     signalSemaphoreInfo.value = 1;
 
-    VkSemaphoreSubmitInfo waitInfo = waitSemaphoreInfo;
-    VkSemaphoreSubmitInfo signalInfo = signalSemaphoreInfo;
-
     VkSubmitInfo2 submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
     submitInfo.pNext = nullptr;
@@ -127,11 +143,10 @@ void srsVkRenderer::draw() {
     submitInfo.commandBufferInfoCount = 1;
     submitInfo.pCommandBufferInfos = &cmdBufferInfo;
 
-    VkSubmitInfo2 submit = submitInfo;
 
     //submit command buffer to the queue and execute it.
     // _renderFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit2(graphicsQueue, 1, &submit, getCurrentFrame().renderFence));
+    VK_CHECK(vkQueueSubmit2(graphicsQueue, 1, &submitInfo, getCurrentFrame().renderFence));
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType =  VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -210,7 +225,7 @@ void srsVkRenderer::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_4;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -287,19 +302,37 @@ void srsVkRenderer::createLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
-    bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
 
-    VkPhysicalDeviceFeatures2 deviceFeatures{};
-    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    deviceFeatures.pNext = &bufferDeviceAddressFeatures;
+    // Check if needed features are available
 
-    vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures);
+    VkPhysicalDeviceVulkan13Features supported13{};
+    supported13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+
+    VkPhysicalDeviceVulkan12Features supported12{};
+    supported12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+
+    VkPhysicalDeviceFeatures2 supported_features{};
+    supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supported_features.pNext = &supported12;
+    supported12.pNext = &supported13;
+
+    vkGetPhysicalDeviceFeatures2(physicalDevice, &supported_features);
+
+    // Create needed feature structs
+    VkPhysicalDeviceVulkan13Features features13{};
+    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.synchronization2 = VK_TRUE;
+    features13.dynamicRendering = VK_TRUE;
+
+    VkPhysicalDeviceVulkan12Features features12{};
+    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    features12.bufferDeviceAddress = VK_TRUE;
+    features12.descriptorIndexing = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pNext = &deviceFeatures;
-
+    createInfo.pNext = &features13;
+    features13.pNext = &features12;
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
@@ -427,7 +460,7 @@ void srsVkRenderer::createSwapChain() {
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     queueFamilyIndices indices = findQueueFamilies(physicalDevice);
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
@@ -497,7 +530,7 @@ void srsVkRenderer::createSwapChain() {
     drawImageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     drawImageAllocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    //allocate and create the imagere
+    //allocate and create the image
     vmaCreateImage(allocator, &drawImageInfo, &drawImageAllocInfo, &drawImage.image, &drawImage.allocation, nullptr);
 
     //build a image-view for the draw image to use for rendering
