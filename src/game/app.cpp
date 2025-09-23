@@ -53,5 +53,6 @@ fsm::fsm_return app::runGame() {
         setState(SHUTDOWN_SYSTEM);
         return CONTINUE;
     }
+    sirius::srsRenderer::draw();
     return CONTINUE;
 }

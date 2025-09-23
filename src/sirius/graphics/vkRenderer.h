@@ -54,7 +54,8 @@ public:
 
 private:
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
     };
 
     struct swapChainSupportDetails {
@@ -111,8 +112,6 @@ private:
 
     void initAllocator();
 
-
-
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -125,7 +124,9 @@ private:
     VkFormat swapChainImageFormat = {};
     VkExtent2D swapChainExtent = {};
 
-    // VmaAllocator allocator;
+    VmaAllocator allocator;
+    AllocatedImage drawImage;
+    VkExtent2D drawExtent;
 
     bool isInitialized = false;
 

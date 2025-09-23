@@ -20,6 +20,8 @@
 #include "window/wndProc.h"
 #include <vulkan/vulkan_win32.h>
 
+#include "core/utils.h"
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -39,6 +41,7 @@ void srsVkRenderer::init() {
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+    initAllocator();
     createSwapChain();
     initCommandBuffers();
     initSyncObjects();
@@ -61,20 +64,112 @@ void srsVkRenderer::draw() {
     beginInfo.pNext = nullptr;
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
+
+    // Transition the swapchain image into writeable mode before rendering
+    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+    //make a clear-color from frame number. This will flash with a 120 frame period.
+    VkClearColorValue clearValue;
+    float flash = std::abs(std::sin(static_cast<float>(frameNumber) / 120.f));
+    clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+
+    VkImageSubresourceRange clearRange{};
+    clearRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    clearRange.baseMipLevel = 0;
+    clearRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    clearRange.baseArrayLayer = 0;
+    clearRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    //clear image
+    vkCmdClearColorImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+
+    //Transition the swapchain image into presentable mode
+    utils::transitionImage(cmd, swapChainImages[imageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    //finalize the command buffer (we can no longer add commands, but it can now be executed)
+    VK_CHECK(vkEndCommandBuffer(cmd));
+
+    VkCommandBufferSubmitInfo cmdBufferInfo{};
+    cmdBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmdBufferInfo.pNext = nullptr;
+    cmdBufferInfo.deviceMask = 0;
+    VkCommandBufferSubmitInfo cmdinfo = cmdBufferInfo;
+
+    VkSemaphoreSubmitInfo waitSemaphoreInfo{};
+    waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    waitSemaphoreInfo.pNext = nullptr;
+    waitSemaphoreInfo.semaphore = getCurrentFrame().swapchainSemaphore;
+    waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
+    waitSemaphoreInfo.deviceIndex = 0;
+    waitSemaphoreInfo.value = 1;
+
+    VkSemaphoreSubmitInfo signalSemaphoreInfo{};
+    signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    signalSemaphoreInfo.pNext = nullptr;
+    signalSemaphoreInfo.semaphore = getCurrentFrame().renderSemaphore;
+    signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+    signalSemaphoreInfo.deviceIndex = 0;
+    signalSemaphoreInfo.value = 1;
+
+    VkSemaphoreSubmitInfo waitInfo = waitSemaphoreInfo;
+    VkSemaphoreSubmitInfo signalInfo = signalSemaphoreInfo;
+
+    VkSubmitInfo2 submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    submitInfo.pNext = nullptr;
+
+    submitInfo.waitSemaphoreInfoCount = 1;
+    submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
+
+    submitInfo.signalSemaphoreInfoCount = 1;
+    submitInfo.pSignalSemaphoreInfos = &signalSemaphoreInfo;
+
+    submitInfo.commandBufferInfoCount = 1;
+    submitInfo.pCommandBufferInfos = &cmdBufferInfo;
+
+    VkSubmitInfo2 submit = submitInfo;
+
+    //submit command buffer to the queue and execute it.
+    // _renderFence will now block until the graphic commands finish execution
+    VK_CHECK(vkQueueSubmit2(graphicsQueue, 1, &submit, getCurrentFrame().renderFence));
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType =  VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pNext = nullptr;
+
+    presentInfo.swapchainCount = 0;
+    presentInfo.pSwapchains = nullptr;
+    presentInfo.pWaitSemaphores = nullptr;
+    presentInfo.waitSemaphoreCount = 0;
+    presentInfo.pImageIndices = nullptr;
+
+    presentInfo.pSwapchains = &swapChain;
+    presentInfo.swapchainCount = 1;
+
+    presentInfo.pWaitSemaphores = &getCurrentFrame().renderSemaphore;
+    presentInfo.waitSemaphoreCount = 1;
+
+    presentInfo.pImageIndices = &imageIndex;
+
+    VkResult presentResult = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+
+
+    //increase the number of frames drawn
+    frameNumber++;
 }
 
 void srsVkRenderer::shutdown() {
     if (isInitialized) {
         vkDeviceWaitIdle(device);
 
-        for (int i = 0; i < FRAME_OVERLAP; i++) {
-            vkDestroyCommandPool(device, frames[i].commandPool, nullptr);
+        for (auto & frame : frames) {
+            vkDestroyCommandPool(device, frame.commandPool, nullptr);
 
-            vkDestroyFence(device, frames[i].renderFence, nullptr);
-            vkDestroySemaphore(device, frames[i].renderSemaphore, nullptr);
-            vkDestroySemaphore(device, frames[i].swapchainSemaphore, nullptr);
+            vkDestroyFence(device, frame.renderFence, nullptr);
+            vkDestroySemaphore(device, frame.renderSemaphore, nullptr);
+            vkDestroySemaphore(device, frame.swapchainSemaphore, nullptr);
 
-            frames[i].deletionQueue.flush();
+            frame.deletionQueue.flush();
         }
         mainDeletionQueue.flush();
     }
@@ -192,15 +287,22 @@ void srsVkRenderer::createLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures{};
+    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
+    bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+
+    VkPhysicalDeviceFeatures2 deviceFeatures{};
+    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures.pNext = &bufferDeviceAddressFeatures;
+
+    vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures);
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pNext = &deviceFeatures;
+
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-    createInfo.pEnabledFeatures = &deviceFeatures;
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());;
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -358,6 +460,66 @@ void srsVkRenderer::createSwapChain() {
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
+
+    VkExtent3D drawImageExtent = {
+        windowHeight,
+        windowHeight,
+        1
+    };
+
+    //hardcoding the draw format to 32 bit float
+    drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+    drawImage.imageExtent = drawImageExtent;
+
+    VkImageUsageFlags drawImageUsages{};
+    drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    VkImageCreateInfo drawImageInfo{};
+    drawImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    drawImageInfo.pNext = nullptr;
+    drawImageInfo.imageType = VK_IMAGE_TYPE_2D;
+    drawImageInfo.format = drawImage.imageFormat;
+    drawImageInfo.extent = drawImageExtent;
+    drawImageInfo.mipLevels = 1;
+    drawImageInfo.arrayLayers = 1;
+    //for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
+    drawImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    //optimal tiling, which means the image is stored on the best gpu format
+    drawImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    drawImageInfo.usage = drawImageUsages;
+
+
+    //for the draw image, we want to allocate it from gpu local memory
+    VmaAllocationCreateInfo drawImageAllocInfo = {};
+    drawImageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    drawImageAllocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    //allocate and create the imagere
+    vmaCreateImage(allocator, &drawImageInfo, &drawImageAllocInfo, &drawImage.image, &drawImage.allocation, nullptr);
+
+    //build a image-view for the draw image to use for rendering
+    VkImageViewCreateInfo renderViewInfo{};
+    renderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    renderViewInfo.pNext = nullptr;
+    renderViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    renderViewInfo.image = drawImage.image;
+    renderViewInfo.format = drawImage.imageFormat;
+    renderViewInfo.subresourceRange.baseMipLevel = 0;
+    renderViewInfo.subresourceRange.levelCount = 1;
+    renderViewInfo.subresourceRange.baseArrayLayer = 0;
+    renderViewInfo.subresourceRange.layerCount = 1;
+    renderViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    VK_CHECK(vkCreateImageView(device, &renderViewInfo, nullptr, &drawImage.imageView));
+
+    //add to deletion queues
+    mainDeletionQueue.push_function([this]() {
+        vkDestroyImageView(device, drawImage.imageView, nullptr);
+        vmaDestroyImage(allocator, drawImage.image, drawImage.allocation);
+    });
 }
 
 VkSurfaceFormatKHR srsVkRenderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -465,10 +627,10 @@ void srsVkRenderer::initAllocator() {
     allocatorInfo.device = device;
     allocatorInfo.instance = instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    // vmaCreateAllocator(&allocatorInfo, &allocator);
-    //
-    // mainDeletionQueue.push_function([&]() {
-    //     vmaDestroyAllocator(allocator);
-    // });
+    vmaCreateAllocator(&allocatorInfo, &allocator);
+
+    mainDeletionQueue.push_function([&]() {
+        vmaDestroyAllocator(allocator);
+    });
 }
 }

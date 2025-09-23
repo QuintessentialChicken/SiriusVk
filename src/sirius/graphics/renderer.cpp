@@ -11,4 +11,8 @@ srsVkRenderer srsRenderer::vkRenderer = srsVkRenderer{};
 void srsRenderer::init() {
     vkRenderer.init();
 }
+
+void srsRenderer::draw() {
+    vkRenderer.draw();
+}
 }

@@ -15,7 +15,7 @@ inline HINSTANCE hInstance = nullptr;
 inline unsigned winClass;
 
 inline std::string windowTitle;
-inline int windowWidth = 800;
-inline int windowHeight = 600;
+inline uint32_t windowWidth = 800;
+inline uint32_t windowHeight = 600;
 inline bool closing = false;
 

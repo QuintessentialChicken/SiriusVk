@@ -9,6 +9,7 @@ namespace sirius {
 class srsRenderer {
 public:
     static void init();
+    static void draw();
 private:
     static srsVkRenderer vkRenderer;
 };
