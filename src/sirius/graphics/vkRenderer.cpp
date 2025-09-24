@@ -20,6 +20,7 @@
 #include "window/wndProc.h"
 #include <vulkan/vulkan_win32.h>
 
+#include "pipelines.h"
 #include "core/utils.h"
 
 #ifdef NDEBUG
@@ -45,6 +46,8 @@ void srsVkRenderer::init() {
     createSwapChain();
     initCommandBuffers();
     initSyncObjects();
+    initDescriptors();
+    initPipelines();
     isInitialized = true;
 }
 
@@ -75,25 +78,12 @@ void srsVkRenderer::draw() {
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
 
-
     // transition our main draw image into general layout so we can write into it
     // we will overwrite it all so we dont care about what was the older layout
     utils::transitionImage(device, cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-    VkClearColorValue clearValue;
-    float flash = std::abs(std::sin(static_cast<float>(frameNumber) / 120.f));
-    clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
-    VkImageSubresourceRange clearRange{};
-    clearRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    clearRange.baseMipLevel = 0;
-    clearRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    clearRange.baseArrayLayer = 0;
-    clearRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-    //clear image
-    vkCmdClearColorImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-    // draw_background(cmd);
+    drawBackground(cmd);
 
     //transition the draw image and the swapchain image into their correct transfer layouts
     utils::transitionImage(device, cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -149,7 +139,7 @@ void srsVkRenderer::draw() {
     VK_CHECK(vkQueueSubmit2(graphicsQueue, 1, &submitInfo, getCurrentFrame().renderFence));
 
     VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType =  VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
 
     presentInfo.swapchainCount = 0;
@@ -173,11 +163,22 @@ void srsVkRenderer::draw() {
     frameNumber++;
 }
 
+void srsVkRenderer::drawBackground(VkCommandBuffer cmd) {
+    // bind the gradient drawing compute pipeline
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
+
+    // bind the descriptor set containing the draw image for the compute pipeline
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+
+    // execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
+    vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+}
+
 void srsVkRenderer::shutdown() {
     if (isInitialized) {
         vkDeviceWaitIdle(device);
 
-        for (auto & frame : frames) {
+        for (auto& frame : frames) {
             vkDestroyCommandPool(device, frame.commandPool, nullptr);
 
             vkDestroyFence(device, frame.renderFence, nullptr);
@@ -616,14 +617,13 @@ void srsVkRenderer::initCommandBuffers() {
     queueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
     //create a command pool for commands submitted to the graphics queue.
     //we also want the pool to allow for resetting of individual command buffers
-    VkCommandPoolCreateInfo commandPoolInfo =  {};
+    VkCommandPoolCreateInfo commandPoolInfo = {};
     commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolInfo.pNext = nullptr;
     commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandPoolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
     for (int i = 0; i < FRAME_OVERLAP; i++) {
-
         VK_CHECK(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &frames[i].commandPool));
 
         // allocate the default command buffer that we will use for rendering
@@ -664,6 +664,89 @@ void srsVkRenderer::initAllocator() {
 
     mainDeletionQueue.push_function([&]() {
         vmaDestroyAllocator(allocator);
+    });
+}
+
+void srsVkRenderer::initDescriptors() {
+    //create a descriptor pool that will hold 10 sets with 1 image each
+    std::vector<descriptorAllocator::poolSizeRatio> sizes =
+    {
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+    };
+
+    globalDescriptorAllocator.initPool(device, 10, sizes);
+
+    //make the descriptor set layout for our compute draw
+    {
+        descriptorLayoutBuilder builder;
+        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        drawImageDescriptorLayout = builder.build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+    drawImageDescriptors = globalDescriptorAllocator.allocate(device, drawImageDescriptorLayout);
+
+    VkDescriptorImageInfo imgInfo{};
+    imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imgInfo.imageView = drawImage.imageView;
+
+    VkWriteDescriptorSet drawImageWrite = {};
+    drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    drawImageWrite.pNext = nullptr;
+
+    drawImageWrite.dstBinding = 0;
+    drawImageWrite.dstSet = drawImageDescriptors;
+    drawImageWrite.descriptorCount = 1;
+    drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    drawImageWrite.pImageInfo = &imgInfo;
+
+    vkUpdateDescriptorSets(device, 1, &drawImageWrite, 0, nullptr);
+
+    //make sure both the descriptor allocator and the new layout get cleaned up properly
+    mainDeletionQueue.push_function([&]() {
+        globalDescriptorAllocator.destroyPool(device);
+
+        vkDestroyDescriptorSetLayout(device, drawImageDescriptorLayout, nullptr);
+    });
+}
+
+void srsVkRenderer::initPipelines() {
+    initBackgroundPipelines();
+}
+
+void srsVkRenderer::initBackgroundPipelines() {
+    VkPipelineLayoutCreateInfo computeLayout{};
+    computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    computeLayout.pNext = nullptr;
+    computeLayout.pSetLayouts = &drawImageDescriptorLayout;
+    computeLayout.setLayoutCount = 1;
+
+    VK_CHECK(vkCreatePipelineLayout(device, &computeLayout, nullptr, &gradientPipelineLayout));
+
+    //layout code
+    VkShaderModule computeDrawShader;
+    if (!load_shader_module("../../src/sirius/shaders/gradient.comp.spv", device, &computeDrawShader)) {
+        fmt::print("Error when building the compute shader \n");
+    }
+
+    VkPipelineShaderStageCreateInfo stageinfo{};
+    stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageinfo.pNext = nullptr;
+    stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stageinfo.module = computeDrawShader;
+    stageinfo.pName = "main";
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo{};
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.pNext = nullptr;
+    computePipelineCreateInfo.layout = gradientPipelineLayout;
+    computePipelineCreateInfo.stage = stageinfo;
+
+    VK_CHECK(vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradientPipeline));
+
+    vkDestroyShaderModule(device, computeDrawShader, nullptr);
+
+    mainDeletionQueue.push_function([&]() {
+        vkDestroyPipelineLayout(device, gradientPipelineLayout, nullptr);
+        vkDestroyPipeline(device, gradientPipeline, nullptr);
     });
 }
 }

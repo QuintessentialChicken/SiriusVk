@@ -11,6 +11,8 @@
 #include <optional>
 #include <vulkan/vulkan_core.h>
 
+#include "descriptors.h"
+
 namespace sirius {
 class deletionQueue
 {
@@ -49,6 +51,8 @@ public:
     void init();
 
     void draw();
+
+    void drawBackground(VkCommandBuffer cmd);
 
     void shutdown();
 
@@ -111,6 +115,14 @@ private:
 
     void initAllocator();
 
+    void initDescriptors();
+
+    void initPipelines();
+
+    void initBackgroundPipelines();
+
+
+
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -126,6 +138,13 @@ private:
     VmaAllocator allocator;
     AllocatedImage drawImage;
     VkExtent2D drawExtent;
+
+    descriptorAllocator globalDescriptorAllocator;
+    VkDescriptorSet drawImageDescriptors;
+    VkDescriptorSetLayout drawImageDescriptorLayout;
+
+    VkPipeline gradientPipeline;
+    VkPipelineLayout gradientPipelineLayout;
 
     bool isInitialized = false;
 

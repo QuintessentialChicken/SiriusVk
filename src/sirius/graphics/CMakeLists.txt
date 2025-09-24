@@ -7,6 +7,10 @@ add_library(graphics STATIC
         vkRenderer.h
         renderer.cpp
         renderer.h
+        descriptors.cpp
+        descriptors.h
+        pipelines.cpp
+        pipelines.h
 )
 
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
