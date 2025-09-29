@@ -93,7 +93,7 @@ void srsVkRenderer::draw() {
     utils::copyImageToImage(cmd, drawImage.image, swapChainImages[imageIndex], drawExtent, swapChainExtent);
 
     // set swapchain image layout to Present so we can show it on the screen
-    utils::transitionImage(device, cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    utils::transitionImage(device, cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
     VK_CHECK(vkEndCommandBuffer(cmd));
