@@ -146,6 +146,14 @@ private:
     VkPipeline gradientPipeline;
     VkPipelineLayout gradientPipelineLayout;
 
+    // immediate submit structures
+    VkFence immFence;
+    VkCommandBuffer _immCommandBuffer;
+    VkCommandPool _immCommandPool;
+
+
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+
     bool isInitialized = false;
 
     int frameNumber {0};

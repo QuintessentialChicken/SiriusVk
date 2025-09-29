@@ -11,6 +11,8 @@ add_library(graphics STATIC
         descriptors.h
         pipelines.cpp
         pipelines.h
+        initializers.cpp
+        initializers.h
 )
 
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
