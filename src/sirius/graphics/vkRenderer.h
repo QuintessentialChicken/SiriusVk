@@ -59,6 +59,7 @@ public:
 private:
     const std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_EXT_SHADER_OBJECT_EXTENSION_NAME
     };
 
     struct swapChainSupportDetails {
@@ -121,6 +122,9 @@ private:
 
     void initBackgroundPipelines();
 
+    void initImgui();
+
+    void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 
     VkInstance instance = VK_NULL_HANDLE;

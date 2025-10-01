@@ -8,6 +8,8 @@
 #include <optional>
 
 #include "graphics/renderer.h"
+#include "third-party/imgui/imgui_impl_vulkan.h"
+#include "third-party/imgui/imgui_impl_win32.h"
 #include "window/window.h"
 #include "window/wndProc.h"
 
@@ -53,6 +55,11 @@ fsm::fsm_return app::runGame() {
         setState(SHUTDOWN_SYSTEM);
         return CONTINUE;
     }
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow();
+    ImGui::Render();
     sirius::srsRenderer::draw();
     return CONTINUE;
 }
