@@ -4,3 +4,4 @@ add_library(window STATIC
 )
 
 target_include_directories(window PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(window PRIVATE ${CMAKE_SOURCE_DIR}/sirius/third-party/imgui)

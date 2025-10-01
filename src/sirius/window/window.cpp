@@ -11,7 +11,13 @@
 #include "resources.h"
 #include <vulkan/vulkan_core.h>
 
+#include "imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 namespace sirius {
+
+
+
 HWND srsWindow::createDeviceWindow() {
     if (!winClass) {
         hInstance = GetModuleHandle(nullptr);
@@ -66,6 +72,9 @@ HWND srsWindow::createDeviceWindow() {
 }
 
 LRESULT srsWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam)) {
+        return true;
+    }
     switch (msg) {
         case WM_CLOSE:
             closing = true;
