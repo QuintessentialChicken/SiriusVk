@@ -2,6 +2,7 @@ set(SHADER_SOURCES
         simple_shader.vert
         simple_shader.frag
         gradient.comp
+        gradient_color.comp
 )
 
 set(SHADER_SPV)

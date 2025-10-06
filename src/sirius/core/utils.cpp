@@ -7,15 +7,15 @@
 #include <iostream>
 
 namespace sirius {
-void utils::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout) {
+void utils::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, transitionFlags flags) {
     VkImageMemoryBarrier2 imageBarrier{};
     imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     imageBarrier.pNext = nullptr;
 
-    imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-    imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+    imageBarrier.srcStageMask = flags.srcStageMask;
+    imageBarrier.srcAccessMask = flags.srcAccessMask;
+    imageBarrier.dstStageMask = flags.dstStageMask;
+    imageBarrier.dstAccessMask = flags.dstAccessMask;
 
     imageBarrier.oldLayout = currentLayout;
     imageBarrier.newLayout = newLayout;

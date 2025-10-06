@@ -4,6 +4,8 @@
 
 #include "initializers.h"
 
+#include <iostream>
+
 
 namespace init {
 VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags flags) {

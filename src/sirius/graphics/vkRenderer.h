@@ -9,6 +9,7 @@
 #include <deque>
 #include <functional>
 #include <optional>
+#include <vec4.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include "descriptors.h"
@@ -41,6 +42,13 @@ struct frameData {
     VkCommandBuffer mainCommandBuffer;
 
     deletionQueue deletionQueue;
+};
+
+struct computePushConstants {
+    glm::vec4 data1;
+    glm::vec4 data2;
+    glm::vec4 data3;
+    glm::vec4 data4;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 3;

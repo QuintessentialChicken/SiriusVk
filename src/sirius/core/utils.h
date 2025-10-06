@@ -8,7 +8,13 @@
 namespace sirius {
 class utils {
 public:
-    static void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
+    struct transitionFlags {
+        VkPipelineStageFlags srcStageMask;
+        VkAccessFlags2 srcAccessMask;
+        VkPipelineStageFlags dstStageMask;
+        VkAccessFlags2 dstAccessMask;
+    };
+    static void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, transitionFlags flags);
 
     static void copyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend);
 };

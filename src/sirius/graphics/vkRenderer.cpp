@@ -64,7 +64,7 @@ void srsVkRenderer::draw() {
     getCurrentFrame().deletionQueue.flush();
 
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, getCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
+    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, getCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
 
     VK_CHECK(vkResetFences(device, 1, &getCurrentFrame().renderFence));
 
@@ -87,24 +87,60 @@ void srsVkRenderer::draw() {
 
     // transition our main draw image into general layout so we can write into it
     // we will overwrite it all so we dont care about what was the older layout
-    utils::transitionImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    utils::transitionFlags beforeComputeFlags{
+        .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+    };
+
+    utils::transitionImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, beforeComputeFlags);
 
 
     drawBackground(cmd);
 
+
     //transition the draw image and the swapchain image into their correct transfer layouts
-    utils::transitionImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    utils::transitionFlags beforeTransferFlagsDraw{
+        .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+    };
+
+    utils::transitionFlags beforeTransferFlagsSwapChain{
+        .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    };
+
+
+    utils::transitionImage(cmd, drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, beforeTransferFlagsDraw);
+    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, beforeTransferFlagsSwapChain);
 
     // execute a copy from the draw image into the swapchain
     utils::copyImageToImage(cmd, drawImage.image, swapChainImages[imageIndex], drawExtent, swapChainExtent);
 
-    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    utils::transitionFlags beforeImguiFlags{
+        .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
+    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, beforeImguiFlags);
 
     drawImgui(cmd, swapChainImageViews[imageIndex]);
 
+    utils::transitionFlags beforePresentFlags{
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+        .dstAccessMask = 0,
+    };
     // set swapchain image layout to Present so we can show it on the screen
-    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    utils::transitionImage(cmd, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, beforePresentFlags);
 
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
     VK_CHECK(vkEndCommandBuffer(cmd));
@@ -180,6 +216,12 @@ void srsVkRenderer::drawBackground(VkCommandBuffer cmd) {
 
     // bind the descriptor set containing the draw image for the compute pipeline
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+
+    computePushConstants pc{};
+    pc.data1 = glm::vec4(1, 0, 0, 1);
+    pc.data2 = glm::vec4(0, 0, 1, 1);
+
+    vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computePushConstants), &pc);
 
     // execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
     vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
@@ -755,11 +797,19 @@ void srsVkRenderer::initBackgroundPipelines() {
     computeLayout.pSetLayouts = &drawImageDescriptorLayout;
     computeLayout.setLayoutCount = 1;
 
+    VkPushConstantRange pushConstant{};
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(computePushConstants);
+    pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    computeLayout.pushConstantRangeCount = 1;
+    computeLayout.pPushConstantRanges = &pushConstant;
+
     VK_CHECK(vkCreatePipelineLayout(device, &computeLayout, nullptr, &gradientPipelineLayout));
 
     //layout code
     VkShaderModule computeDrawShader;
-    if (!load_shader_module("../../src/sirius/shaders/gradient.comp.spv", device, &computeDrawShader)) {
+    if (!load_shader_module("../../src/sirius/shaders/gradient_color.comp.spv", device, &computeDrawShader)) {
         fmt::print("Error when building the compute shader \n");
     }
 
