@@ -51,6 +51,15 @@ struct computePushConstants {
     glm::vec4 data4;
 };
 
+struct computeEffect {
+    const char* name;
+
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+
+    computePushConstants data;
+};
+
 constexpr unsigned int FRAME_OVERLAP = 3;
 
 
@@ -61,6 +70,8 @@ public:
     void draw();
 
     void drawBackground(VkCommandBuffer cmd);
+
+    void spawnImguiWindow();
 
     void shutdown();
 
@@ -171,6 +182,11 @@ private:
     int frameNumber {0};
     frameData frames[FRAME_OVERLAP] {};
     frameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+
+    std::vector<computeEffect> computeEffects;
+    int currentEffect = 0;
+	float renderScale = 1.f;
+
 
     deletionQueue mainDeletionQueue;
 

@@ -10,6 +10,7 @@ class srsRenderer {
 public:
     static void init();
     static void draw();
+    static void spawnImguiWindow();
 private:
     static srsVkRenderer vkRenderer;
 };

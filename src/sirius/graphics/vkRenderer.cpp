@@ -211,20 +211,45 @@ void srsVkRenderer::draw() {
 }
 
 void srsVkRenderer::drawBackground(VkCommandBuffer cmd) {
+    const computeEffect& effect = computeEffects.at(currentEffect);
+
     // bind the gradient drawing compute pipeline
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
     // bind the descriptor set containing the draw image for the compute pipeline
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
 
-    computePushConstants pc{};
-    pc.data1 = glm::vec4(1, 0, 0, 1);
-    pc.data2 = glm::vec4(0, 0, 1, 1);
-
-    vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computePushConstants), &pc);
+    vkCmdPushConstants(cmd, gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computePushConstants), &effect.data);
 
     // execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
     vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+}
+
+void srsVkRenderer::spawnImguiWindow() {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+
+    ImGui::NewFrame();
+
+    if (ImGui::Begin("background")) {
+
+        ImGui::SliderFloat("Render Scale",&renderScale, 0.3f, 1.f);
+
+        computeEffect& selected = computeEffects[currentEffect];
+
+        ImGui::Text("Selected effect: ", selected.name);
+
+        ImGui::SliderInt("Effect Index", &currentEffect,0, computeEffects.size() - 1);
+
+        ImGui::InputFloat4("data1",(float*)& selected.data.data1);
+        ImGui::InputFloat4("data2",(float*)& selected.data.data2);
+        ImGui::InputFloat4("data3",(float*)& selected.data.data3);
+        ImGui::InputFloat4("data4",(float*)& selected.data.data4);
+
+        ImGui::End();
+    }
+
+    ImGui::Render();
 }
 
 void srsVkRenderer::shutdown() {
@@ -808,8 +833,13 @@ void srsVkRenderer::initBackgroundPipelines() {
     VK_CHECK(vkCreatePipelineLayout(device, &computeLayout, nullptr, &gradientPipelineLayout));
 
     //layout code
-    VkShaderModule computeDrawShader;
-    if (!load_shader_module("../../src/sirius/shaders/gradient_color.comp.spv", device, &computeDrawShader)) {
+    VkShaderModule gradientShader;
+    if (!load_shader_module("../../src/sirius/shaders/gradient_color.comp.spv", device, &gradientShader)) {
+        fmt::print("Error when building the compute shader \n");
+    }
+
+    VkShaderModule skyShader;
+    if (!load_shader_module("../../src/sirius/shaders/sky.comp.spv", device, &skyShader)) {
         fmt::print("Error when building the compute shader \n");
     }
 
@@ -817,7 +847,7 @@ void srsVkRenderer::initBackgroundPipelines() {
     stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stageinfo.pNext = nullptr;
     stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stageinfo.module = computeDrawShader;
+    stageinfo.module = gradientShader;
     stageinfo.pName = "main";
 
     VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -826,13 +856,37 @@ void srsVkRenderer::initBackgroundPipelines() {
     computePipelineCreateInfo.layout = gradientPipelineLayout;
     computePipelineCreateInfo.stage = stageinfo;
 
-    VK_CHECK(vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradientPipeline));
+    computeEffect gradient{};
+    gradient.layout = gradientPipelineLayout;
+    gradient.name = "gradient";
+    gradient.data = {
+        glm::vec4(1, 0, 0, 1),
+        glm::vec4(0, 0, 1, 1)
+    };
 
-    vkDestroyShaderModule(device, computeDrawShader, nullptr);
+    VK_CHECK(vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &gradient.pipeline));
+
+    computePipelineCreateInfo.stage.module = skyShader;
+
+    computeEffect sky{};
+    sky.layout = gradientPipelineLayout;
+    sky.name = "sky";
+    sky.data = {
+        glm::vec4(0.1f, 0.2f, 0.4f, 0.97f)
+    };
+
+    VK_CHECK(vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&computePipelineCreateInfo, nullptr, &sky.pipeline));
+
+    computeEffects.push_back(gradient);
+    computeEffects.push_back(sky);
+
+    vkDestroyShaderModule(device, gradientShader, nullptr);
+    vkDestroyShaderModule(device, skyShader, nullptr);
 
     mainDeletionQueue.push_function([&]() {
         vkDestroyPipelineLayout(device, gradientPipelineLayout, nullptr);
-        vkDestroyPipeline(device, gradientPipeline, nullptr);
+        vkDestroyPipeline(device, gradient.pipeline, nullptr);
+        vkDestroyPipeline(device, sky.pipeline, nullptr);
     });
 }
 

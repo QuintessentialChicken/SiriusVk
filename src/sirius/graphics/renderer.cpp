@@ -15,4 +15,8 @@ void srsRenderer::init() {
 void srsRenderer::draw() {
     vkRenderer.draw();
 }
+
+void srsRenderer::spawnImguiWindow() {
+    vkRenderer.spawnImguiWindow();
+}
 }

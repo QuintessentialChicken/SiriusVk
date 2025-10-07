@@ -55,11 +55,7 @@ fsm::fsm_return app::runGame() {
         setState(SHUTDOWN_SYSTEM);
         return CONTINUE;
     }
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    ImGui::ShowDemoWindow();
-    ImGui::Render();
+    sirius::srsRenderer::spawnImguiWindow();
     sirius::srsRenderer::draw();
     return CONTINUE;
 }

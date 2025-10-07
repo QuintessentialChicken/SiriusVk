@@ -3,6 +3,7 @@ set(SHADER_SOURCES
         simple_shader.frag
         gradient.comp
         gradient_color.comp
+        sky.comp
 )
 
 set(SHADER_SPV)
