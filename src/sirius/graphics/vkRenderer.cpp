@@ -890,6 +890,29 @@ void srsVkRenderer::initBackgroundPipelines() {
     });
 }
 
+void srsVkRenderer::initTrianglePipeline() {
+    VkShaderModule vertShader;
+    if (!load_shader_module("../../src/sirius/shaders/triangle.vert.spv", device, &vertShader)) {
+        fmt::print("Error when loading the triangle fragment shader \n");
+    } else {
+        fmt::print("Triangle fragment shader loaded successfully");
+    }
+
+    VkShaderModule fragShader;
+    if (!load_shader_module("../../src/sirius/shaders/triangle.frag.spv", device, &fragShader)) {
+        fmt::print("Error when loading the fragment shader \n");
+    } else {
+        fmt::print("Triangle fragment shader loaded successfully");
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = init::pipeline_layout_create_info();
+    VK_CHECK(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &gradientPipelineLayout));
+
+    pipelineBuilder
+
+
+}
+
 void srsVkRenderer::initImgui() {
     IMGUI_CHECKVERSION();
 

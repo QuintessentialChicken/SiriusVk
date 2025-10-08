@@ -13,6 +13,25 @@ class pipelineBuilder {
 
     void clear();
 
+private:
+    void setShaders(VkShaderModule vertShader, VkShaderModule fragShader);
+
+    void setInputTopology(VkPrimitiveTopology topology);
+
+    void setPolygonMode(VkPolygonMode polygonMode);
+
+    void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
+
+    void setMultisamplingNone();
+
+    void disableBlending();
+
+    void setColorAttachmentFormat(VkFormat format);
+
+    void setDepthFormat(VkFormat format);
+
+    void disableDepthTest();
+
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     VkPipelineInputAssemblyStateCreateInfo inputAssembly;
     VkPipelineRasterizationStateCreateInfo rasterizer;

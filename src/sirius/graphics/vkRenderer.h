@@ -141,6 +141,8 @@ private:
 
     void initBackgroundPipelines();
 
+    void initTrianglePipeline();
+
     void initImgui();
 
     void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
@@ -186,6 +188,9 @@ private:
     std::vector<computeEffect> computeEffects;
     int currentEffect = 0;
 	float renderScale = 1.f;
+
+    VkPipelineLayout _trianglePipelineLayout;
+    VkPipeline _trianglePipeline;
 
 
     deletionQueue mainDeletionQueue;

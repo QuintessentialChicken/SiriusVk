@@ -4,6 +4,8 @@ set(SHADER_SOURCES
         gradient.comp
         gradient_color.comp
         sky.comp
+        colored_triangle.frag
+        colored_triangle.vert
 )
 
 set(SHADER_SPV)

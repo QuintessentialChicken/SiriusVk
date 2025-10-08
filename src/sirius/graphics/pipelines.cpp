@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <vector>
 
+#include "initializers.h"
 #include "fmt/base.h"
 
 VkPipeline sirius::pipelineBuilder::buildPipeline(VkDevice device) {
@@ -75,6 +76,63 @@ void sirius::pipelineBuilder::clear() {
     renderInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 
     shaderStages.clear();
+}
+
+void sirius::pipelineBuilder::setShaders(VkShaderModule vertShader, VkShaderModule fragShader) {
+    shaderStages.clear();
+    shaderStages.emplace_back(init::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertShader, nullptr));
+    shaderStages.emplace_back(init::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragShader, nullptr));
+}
+
+void sirius::pipelineBuilder::setInputTopology(VkPrimitiveTopology topology) {
+    inputAssembly.topology = topology;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+}
+
+void sirius::pipelineBuilder::setPolygonMode(VkPolygonMode polygonMode) {
+    rasterizer.polygonMode = polygonMode;
+    rasterizer.lineWidth = 1.0f;
+}
+
+void sirius::pipelineBuilder::setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace) {
+    rasterizer.cullMode = cullMode;
+    rasterizer.frontFace = frontFace;
+}
+
+void sirius::pipelineBuilder::setMultisamplingNone() {
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f;
+    multisampling.pSampleMask = nullptr;
+    multisampling.alphaToCoverageEnable = VK_FALSE;
+    multisampling.alphaToOneEnable = VK_FALSE;
+}
+
+void sirius::pipelineBuilder::disableBlending() {
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+}
+
+void sirius::pipelineBuilder::setColorAttachmentFormat(VkFormat format) {
+    colorAttachmentformat = format;
+    renderInfo.colorAttachmentCount = 1;
+    renderInfo.pColorAttachmentFormats = &colorAttachmentformat;
+}
+
+void sirius::pipelineBuilder::setDepthFormat(VkFormat format) {
+    renderInfo.depthAttachmentFormat = format;
+}
+
+void sirius::pipelineBuilder::disableDepthTest() {
+    depthStencil.depthTestEnable = VK_FALSE;
+    depthStencil.depthWriteEnable = VK_FALSE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {};
+    depthStencil.back = {};
+    depthStencil.minDepthBounds = 0.f;
+    depthStencil.maxDepthBounds = 1.f;
 }
 
 bool sirius::load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule) {
