@@ -69,8 +69,6 @@ public:
 
     void Draw();
 
-    void DrawBackground(VkCommandBuffer cmd);
-
     void SpawnImguiWindow();
 
     void Shutdown();
@@ -146,6 +144,10 @@ private:
     void InitImgui();
 
     void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
+
+    void DrawBackground(VkCommandBuffer cmd);
+
+    void DrawGeometry();
 
 
     VkInstance instance_ = VK_NULL_HANDLE;

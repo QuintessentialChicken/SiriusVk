@@ -86,7 +86,7 @@ void SrsVkRenderer::Draw() {
 
 
     // transition our main draw image into general layout so we can write into it
-    // we will overwrite it all so we dont care about what was the older layout
+    // we will overwrite it all so we dont care about what the older layout was
     Utils::TransitionFlags beforeComputeFlags{
         .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
         .srcAccessMask = 0,
@@ -99,6 +99,16 @@ void SrsVkRenderer::Draw() {
 
     DrawBackground(cmd);
 
+    Utils::TransitionFlags beforeGeoDrawFlags{
+        .srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+    };
+
+    Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, beforeGeoDrawFlags);
+
+    DrawGeometry();
 
     //transition the draw image and the swapchain image into their correct transfer layouts
     Utils::TransitionFlags beforeTransferFlagsDraw{
@@ -115,8 +125,7 @@ void SrsVkRenderer::Draw() {
         .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
     };
 
-
-    Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, beforeTransferFlagsDraw);
+    Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, beforeTransferFlagsDraw);
     Utils::TransitionImage(cmd, swapChainImages_[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, beforeTransferFlagsSwapChain);
 
     // execute a copy from the draw image into the swapchain
@@ -223,6 +232,9 @@ void SrsVkRenderer::DrawBackground(VkCommandBuffer cmd) {
 
     // execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
     vkCmdDispatch(cmd, std::ceil(drawExtent_.width / 16.0), std::ceil(drawExtent_.height / 16.0), 1);
+}
+
+void SrsVkRenderer::DrawGeometry() {
 }
 
 void SrsVkRenderer::SpawnImguiWindow() {
@@ -910,8 +922,24 @@ void SrsVkRenderer::InitTrianglePipeline() {
 
     PipelineBuilder pipelineBuilder;
     pipelineBuilder.pipelineLayout_ = trianglePipelineLayout_;
-    
+    pipelineBuilder.SetShaders(vertShader, fragShader);
+    pipelineBuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    pipelineBuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
+    pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.SetMultisamplingNone();
+    pipelineBuilder.DisableBlending();
+    pipelineBuilder.DisableDepthTest();
+    pipelineBuilder.SetColorAttachmentFormat(drawImage_.imageFormat);
+    pipelineBuilder.SetDepthFormat(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.BuildPipeline(device_);
 
+    vkDestroyShaderModule(device_, vertShader, nullptr);
+    vkDestroyShaderModule(device_, fragShader, nullptr);
+
+    mainDeletionQueue_.PushFunction([&]() {
+        vkDestroyPipelineLayout(device_, trianglePipelineLayout_, nullptr);
+        vkDestroyPipeline(device_, trianglePipeline_, nullptr);
+    });
 }
 
 void SrsVkRenderer::InitImgui() {
