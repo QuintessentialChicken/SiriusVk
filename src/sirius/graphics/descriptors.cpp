@@ -7,29 +7,29 @@
 #include "core/types.h"
 
 namespace sirius {
-void descriptorLayoutBuilder::addBinding(uint32_t binding, VkDescriptorType type) {
+void DescriptorLayoutBuilder::AddBinding(uint32_t binding, VkDescriptorType type) {
     VkDescriptorSetLayoutBinding newbind {};
     newbind.binding = binding;
     newbind.descriptorCount = 1;
     newbind.descriptorType = type;
 
-    bindings.push_back(newbind);
+    bindings_.push_back(newbind);
 }
 
-void descriptorLayoutBuilder::clear() {
-    bindings.clear();
+void DescriptorLayoutBuilder::Clear() {
+    bindings_.clear();
 }
 
-VkDescriptorSetLayout descriptorLayoutBuilder::build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext, VkDescriptorSetLayoutCreateFlags flags) {
-    for (auto& b : bindings) {
+VkDescriptorSetLayout DescriptorLayoutBuilder::Build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext, VkDescriptorSetLayoutCreateFlags flags) {
+    for (auto& b : bindings_) {
         b.stageFlags |= shaderStages;
     }
 
     VkDescriptorSetLayoutCreateInfo info = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     info.pNext = pNext;
 
-    info.pBindings = bindings.data();
-    info.bindingCount = static_cast<uint32_t>(bindings.size());
+    info.pBindings = bindings_.data();
+    info.bindingCount = static_cast<uint32_t>(bindings_.size());
     info.flags = flags;
 
     VkDescriptorSetLayout set;
@@ -38,9 +38,9 @@ VkDescriptorSetLayout descriptorLayoutBuilder::build(VkDevice device, VkShaderSt
     return set;
 }
 
-void descriptorAllocator::initPool(VkDevice device, uint32_t maxSets, std::span<poolSizeRatio> poolRatios) {
+void DescriptorAllocator::InitPool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios) {
     std::vector<VkDescriptorPoolSize> poolSizes;
-    for (poolSizeRatio ratio : poolRatios) {
+    for (PoolSizeRatio ratio : poolRatios) {
         poolSizes.push_back(VkDescriptorPoolSize{
             .type = ratio.type,
             .descriptorCount = uint32_t(ratio.ratio * maxSets)
@@ -53,22 +53,22 @@ void descriptorAllocator::initPool(VkDevice device, uint32_t maxSets, std::span<
     pool_info.poolSizeCount = (uint32_t)poolSizes.size();
     pool_info.pPoolSizes = poolSizes.data();
 
-    vkCreateDescriptorPool(device, &pool_info, nullptr, &pool);
+    vkCreateDescriptorPool(device, &pool_info, nullptr, &pool_);
 }
 
-void descriptorAllocator::clearDescriptors(VkDevice device) {
-    vkResetDescriptorPool(device, pool, 0);
+void DescriptorAllocator::ClearDescriptors(VkDevice device) {
+    vkResetDescriptorPool(device, pool_, 0);
 
 }
 
-void descriptorAllocator::destroyPool(VkDevice device) {
-    vkDestroyDescriptorPool(device, pool, nullptr);
+void DescriptorAllocator::DestroyPool(VkDevice device) {
+    vkDestroyDescriptorPool(device, pool_, nullptr);
 }
 
-VkDescriptorSet descriptorAllocator::allocate(VkDevice device, VkDescriptorSetLayout layout) {
+VkDescriptorSet DescriptorAllocator::allocate(VkDevice device, VkDescriptorSetLayout layout) {
     VkDescriptorSetAllocateInfo allocInfo = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     allocInfo.pNext = nullptr;
-    allocInfo.descriptorPool = pool;
+    allocInfo.descriptorPool = pool_;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &layout;
 

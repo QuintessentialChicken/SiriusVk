@@ -7,31 +7,31 @@
 #include <vulkan/vulkan_core.h>
 
 namespace sirius {
-class descriptorLayoutBuilder {
+class DescriptorLayoutBuilder {
 public:
-    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<VkDescriptorSetLayoutBinding> bindings_;
 
-    void addBinding(uint32_t binding, VkDescriptorType type);
+    void AddBinding(uint32_t binding, VkDescriptorType type);
 
-    void clear();
+    void Clear();
 
-    VkDescriptorSetLayout build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
+    VkDescriptorSetLayout Build(VkDevice device, VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 };
 
-class descriptorAllocator {
+class DescriptorAllocator {
 public:
-    struct poolSizeRatio {
+    struct PoolSizeRatio {
         VkDescriptorType type;
         float ratio;
     };
 
-    VkDescriptorPool pool;
+    VkDescriptorPool pool_;
 
-    void initPool(VkDevice device, uint32_t maxSets, std::span<poolSizeRatio> poolRatios);
+    void InitPool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios);
 
-    void clearDescriptors(VkDevice device);
+    void ClearDescriptors(VkDevice device);
 
-    void destroyPool(VkDevice device);
+    void DestroyPool(VkDevice device);
 
     VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
 };

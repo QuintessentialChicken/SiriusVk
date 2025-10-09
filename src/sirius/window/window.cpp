@@ -18,13 +18,13 @@ namespace sirius {
 
 
 
-HWND srsWindow::createDeviceWindow() {
+HWND SrsWindow::CreateDeviceWindow() {
     if (!winClass) {
         hInstance = GetModuleHandle(nullptr);
         WNDCLASSEX wc{};
         wc.cbSize = sizeof(wc);
         wc.style = CS_OWNDC;
-        wc.lpfnWndProc = handleMessages;
+        wc.lpfnWndProc = HandleMessages;
         wc.cbClsExtra = 0;
         wc.cbWndExtra = 0;
         wc.hInstance = hInstance;
@@ -71,7 +71,7 @@ HWND srsWindow::createDeviceWindow() {
     return result;
 }
 
-LRESULT srsWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
+LRESULT SrsWindow::HandleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam)) {
         return true;
     }
@@ -91,9 +91,9 @@ LRESULT srsWindow::handleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
     return g_WindowProc(hWnd, msg, wParam, lParam);
 }
 
-void srsWindow::setWindowTitle(const std::string& title) {
+void SrsWindow::SetWindowTitle(const std::string& title) {
 }
 
-void srsWindow::setBackgroundColor(float r, float g, float b, float a) {
+void SrsWindow::SetBackgroundColor(float r, float g, float b, float a) {
 }
 }

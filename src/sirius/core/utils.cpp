@@ -7,7 +7,7 @@
 #include <iostream>
 
 namespace sirius {
-void utils::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, transitionFlags flags) {
+void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, TransitionFlags flags) {
     VkImageMemoryBarrier2 imageBarrier{};
     imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     imageBarrier.pNext = nullptr;
@@ -42,7 +42,7 @@ void utils::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout cu
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-    void utils::copyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend) {
+    void Utils::CopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend) {
     VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
     blitRegion.srcOffsets[1].x = static_cast<int32_t>(srcExtend.width);

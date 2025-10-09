@@ -15,185 +15,185 @@
 #include "descriptors.h"
 
 namespace sirius {
-class deletionQueue
+class DeletionQueue
 {
 public:
-    std::deque<std::function<void()>> deletors;
+    std::deque<std::function<void()>> deletors_;
 
-    void push_function(std::function<void()>&& function) {
-        deletors.push_back(function);
+    void PushFunction(std::function<void()>&& function) {
+        deletors_.push_back(function);
     }
 
-    void flush() {
+    void Flush() {
         // reverse iterate the deletion queue to execute all the functions
-        for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+        for (auto it = deletors_.rbegin(); it != deletors_.rend(); it++) {
             (*it)(); //call functors
         }
 
-        deletors.clear();
+        deletors_.clear();
     }
 };
 
-struct frameData {
+struct FrameData {
     VkSemaphore swapchainSemaphore, renderSemaphore;
     VkFence renderFence;
 
     VkCommandPool commandPool;
     VkCommandBuffer mainCommandBuffer;
 
-    deletionQueue deletionQueue;
+    DeletionQueue deletionQueue;
 };
 
-struct computePushConstants {
+struct ComputePushConstants {
     glm::vec4 data1;
     glm::vec4 data2;
     glm::vec4 data3;
     glm::vec4 data4;
 };
 
-struct computeEffect {
+struct ComputeEffect {
     const char* name;
 
     VkPipeline pipeline;
     VkPipelineLayout layout;
 
-    computePushConstants data;
+    ComputePushConstants data;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 3;
+constexpr unsigned int kFrameOverlap = 3;
 
 
-class srsVkRenderer {
+class SrsVkRenderer {
 public:
-    void init();
+    void Init();
 
-    void draw();
+    void Draw();
 
-    void drawBackground(VkCommandBuffer cmd);
+    void DrawBackground(VkCommandBuffer cmd);
 
-    void spawnImguiWindow();
+    void SpawnImguiWindow();
 
-    void shutdown();
+    void Shutdown();
 
 private:
-    const std::vector<const char*> deviceExtensions = {
+    const std::vector<const char*> deviceExtensions_ = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_EXT_SHADER_OBJECT_EXTENSION_NAME
     };
 
-    struct swapChainSupportDetails {
+    struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities;
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    const std::vector<const char*> validationLayers = {
+    const std::vector<const char*> validationLayers_ = {
         "VK_LAYER_KHRONOS_validation"
     };
 
-    struct queueFamilyIndices {
+    struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
 
-        bool isComplete() {
+        [[nodiscard]] bool IsComplete() const {
             return graphicsFamily.has_value() && presentFamily.has_value();
         }
     };
 
 
-    bool checkValidationLayerSupport();
+    bool CheckValidationLayerSupport();
 
-    void createInstance();
+    void CreateInstance();
 
-    void createSurface();
+    void CreateSurface();
 
-    void pickPhysicalDevice();
+    void PickPhysicalDevice();
 
-    void createLogicalDevice();
+    void CreateLogicalDevice();
 
-    bool isDeviceSuitable(VkPhysicalDevice device);
+    bool IsDeviceSuitable(VkPhysicalDevice device);
 
-    queueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+    bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 
-    swapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+    SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 
-    void createSwapChain();
+    void CreateSwapChain();
 
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
-    void createImageViews();
+    void CreateImageViews();
 
-    void initCommandBuffers();
+    void InitCommandBuffers();
 
-    void initSyncObjects();
+    void InitSyncObjects();
 
-    void initAllocator();
+    void InitAllocator();
 
-    void initDescriptors();
+    void InitDescriptors();
 
-    void initPipelines();
+    void InitPipelines();
 
-    void initBackgroundPipelines();
+    void InitBackgroundPipelines();
 
-    void initTrianglePipeline();
+    void InitTrianglePipeline();
 
-    void initImgui();
+    void InitImgui();
 
-    void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
+    void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 
-    VkInstance instance = VK_NULL_HANDLE;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device = VK_NULL_HANDLE;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkQueue graphicsQueue = VK_NULL_HANDLE;
-    VkQueue presentQueue = VK_NULL_HANDLE;
-    VkSwapchainKHR swapChain = VK_NULL_HANDLE;
-    std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> swapChainImageViews;
-    VkFormat swapChainImageFormat = {};
-    VkExtent2D swapChainExtent = {};
+    VkInstance instance_ = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
+    VkDevice device_ = VK_NULL_HANDLE;
+    VkSurfaceKHR surface_ = VK_NULL_HANDLE;
+    VkQueue graphicsQueue_ = VK_NULL_HANDLE;
+    VkQueue presentQueue_ = VK_NULL_HANDLE;
+    VkSwapchainKHR swapChain_ = VK_NULL_HANDLE;
+    std::vector<VkImage> swapChainImages_;
+    std::vector<VkImageView> swapChainImageViews_;
+    VkFormat swapChainImageFormat_ = {};
+    VkExtent2D swapChainExtent_ = {};
 
-    VmaAllocator allocator;
-    AllocatedImage drawImage;
-    VkExtent2D drawExtent;
+    VmaAllocator allocator_ = nullptr;
+    AllocatedImage drawImage_;
+    VkExtent2D drawExtent_;
 
-    descriptorAllocator globalDescriptorAllocator;
-    VkDescriptorSet drawImageDescriptors;
-    VkDescriptorSetLayout drawImageDescriptorLayout;
+    DescriptorAllocator globalDescriptorAllocator_;
+    VkDescriptorSet drawImageDescriptors_;
+    VkDescriptorSetLayout drawImageDescriptorLayout_;
 
-    VkPipeline gradientPipeline;
-    VkPipelineLayout gradientPipelineLayout;
+    VkPipeline gradientPipeline_;
+    VkPipelineLayout gradientPipelineLayout_;
 
     // immediate submit structures
-    VkFence immFence;
-    VkCommandBuffer _immCommandBuffer;
-    VkCommandPool _immCommandPool;
+    VkFence immFence_;
+    VkCommandBuffer immCommandBuffer_;
+    VkCommandPool immCommandPool_;
 
 
-    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+    void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
-    bool isInitialized = false;
+    bool isInitialized_ = false;
 
-    int frameNumber {0};
-    frameData frames[FRAME_OVERLAP] {};
-    frameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+    int frameNumber_ {0};
+    FrameData frames_[kFrameOverlap] {};
+    FrameData& GetCurrentFrame() { return frames_[frameNumber_ % kFrameOverlap]; }
 
-    std::vector<computeEffect> computeEffects;
-    int currentEffect = 0;
-	float renderScale = 1.f;
+    std::vector<ComputeEffect> computeEffects_;
+    int currentEffect_ = 0;
+	float renderScale_ = 1.f;
 
-    VkPipelineLayout _trianglePipelineLayout;
-    VkPipeline _trianglePipeline;
+    VkPipelineLayout trianglePipelineLayout_;
+    VkPipeline trianglePipeline_;
 
 
-    deletionQueue mainDeletionQueue;
+    DeletionQueue mainDeletionQueue_;
 
 };
 }

@@ -6,12 +6,12 @@
 #include "vkRenderer.h"
 
 namespace sirius {
-class srsRenderer {
+class SrsRenderer {
 public:
-    static void init();
-    static void draw();
-    static void spawnImguiWindow();
+    static void Init();
+    static void Draw();
+    static void SpawnImguiWindow();
 private:
-    static srsVkRenderer vkRenderer;
+    static SrsVkRenderer vkRenderer_;
 };
 }

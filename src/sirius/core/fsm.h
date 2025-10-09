@@ -6,29 +6,29 @@
 
 
 
-class fsm {
+class Fsm {
 public:
-    enum fsm_return {
+    enum FsmReturn {
         UNHANDLED = 0,
         CONTINUE,
         EXIT,
     };
-    fsm();
-    virtual ~fsm() = default;
+    Fsm();
+    virtual ~Fsm() = default;
 
-    fsm_return update();
-    bool runOneIteration() noexcept;
+    FsmReturn update();
+    bool RunOneIteration() noexcept;
 
-    void setState(signed short state) noexcept;
-    signed short getState() const noexcept;
+    void SetState(signed short state) noexcept;
+    [[nodiscard]] signed short GetState() const noexcept;
 protected:
     // App implements this to define where to go from which state.
-    virtual fsm_return updateState(signed short state) = 0;
+    virtual FsmReturn UpdateState(signed short state) = 0;
 
-    bool currentStateNotYetEntered = true;
+    bool currentStateNotYetEntered_ = true;
 private:
-    signed short currentState;
-    signed short nextState;
+    signed short currentState_;
+    signed short nextState_;
 };
 
 

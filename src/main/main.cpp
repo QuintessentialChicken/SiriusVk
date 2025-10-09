@@ -14,7 +14,7 @@ bool Main_Prologue() {
 }
 
 bool Main_OneLoopIteration() {
-    return my_app.runOneIteration();
+    return my_app.RunOneIteration();
 }
 
 SET_APP_ENTRY_POINTS(Main_Prologue, Main_OneLoopIteration)

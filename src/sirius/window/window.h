@@ -9,13 +9,13 @@
 #include <Windows.h>
 
 namespace sirius {
-    class srsWindow {
+    class SrsWindow {
     public:
-        static HWND createDeviceWindow();
-        static void setWindowTitle(const std::string& title);
-        static void setBackgroundColor(float r, float g, float b, float a);
+        static HWND CreateDeviceWindow();
+        static void SetWindowTitle(const std::string& title);
+        static void SetBackgroundColor(float r, float g, float b, float a);
     private:
-        static LRESULT handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) noexcept;
+        static LRESULT HandleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) noexcept;
     };
 }
 

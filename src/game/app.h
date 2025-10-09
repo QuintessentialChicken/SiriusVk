@@ -7,7 +7,7 @@
 #include "core/fsm.h"
 #include "graphics/vkRenderer.h"
 
-class app : public fsm {
+class app : public Fsm {
 public:
 
     enum {
@@ -16,14 +16,14 @@ public:
         SHUTDOWN_SYSTEM
     };
 
-    fsm_return updateState(signed short state) override;
+    FsmReturn UpdateState(signed short state) override;
     // Implement state machine here later to handle Initialization, Game loop and teardown
     // App can inherit from state machine class, RunOneIteration is part of state machine class
-    fsm_return init();
+    FsmReturn init();
 
-    fsm_return shutdown();
+    FsmReturn shutdown();
 
-    fsm_return runGame();
+    FsmReturn runGame();
 private:
     bool isSystemInitialized = false;
 };

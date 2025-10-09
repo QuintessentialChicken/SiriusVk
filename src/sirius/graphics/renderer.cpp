@@ -6,17 +6,17 @@
 
 
 namespace sirius {
-srsVkRenderer srsRenderer::vkRenderer = srsVkRenderer{};
+SrsVkRenderer SrsRenderer::vkRenderer_ = SrsVkRenderer{};
 
-void srsRenderer::init() {
-    vkRenderer.init();
+void SrsRenderer::Init() {
+    vkRenderer_.Init();
 }
 
-void srsRenderer::draw() {
-    vkRenderer.draw();
+void SrsRenderer::Draw() {
+    vkRenderer_.Draw();
 }
 
-void srsRenderer::spawnImguiWindow() {
-    vkRenderer.spawnImguiWindow();
+void SrsRenderer::SpawnImguiWindow() {
+    vkRenderer_.SpawnImguiWindow();
 }
 }

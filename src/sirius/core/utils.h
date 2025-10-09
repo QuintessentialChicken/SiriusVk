@@ -6,16 +6,16 @@
 #include <vulkan/vulkan.h>
 
 namespace sirius {
-class utils {
+class Utils {
 public:
-    struct transitionFlags {
+    struct TransitionFlags {
         VkPipelineStageFlags srcStageMask;
         VkAccessFlags2 srcAccessMask;
         VkPipelineStageFlags dstStageMask;
         VkAccessFlags2 dstAccessMask;
     };
-    static void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, transitionFlags flags);
+    static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, TransitionFlags flags);
 
-    static void copyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend);
+    static void CopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend);
 };
 }
