@@ -100,20 +100,20 @@ void SrsVkRenderer::Draw() {
     DrawBackground(cmd);
 
     Utils::TransitionFlags beforeGeoDrawFlags{
-        .srcStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
-        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
-        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstStageMask = VK_ACCESS_2_NONE,
+        .dstAccessMask = VK_PIPELINE_STAGE_2_NONE,
     };
 
     Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, beforeGeoDrawFlags);
 
-    DrawGeometry();
+    DrawGeometry(cmd);
 
     //transition the draw image and the swapchain image into their correct transfer layouts
     Utils::TransitionFlags beforeTransferFlagsDraw{
         .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-        .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+        .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
         .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
         .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
     };
@@ -234,7 +234,34 @@ void SrsVkRenderer::DrawBackground(VkCommandBuffer cmd) {
     vkCmdDispatch(cmd, std::ceil(drawExtent_.width / 16.0), std::ceil(drawExtent_.height / 16.0), 1);
 }
 
-void SrsVkRenderer::DrawGeometry() {
+void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
+    VkRenderingAttachmentInfo colorAttachment = init::attachment_info(drawImage_.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+    VkRenderingInfo renderingInfo = init::rendering_info(drawExtent_, &colorAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &renderingInfo);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline_);
+
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = drawExtent_.width;
+    viewport.height = drawExtent_.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent.width = drawExtent_.width;
+    scissor.extent.height = drawExtent_.height;
+
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    vkCmdEndRendering(cmd);
 }
 
 void SrsVkRenderer::SpawnImguiWindow() {
@@ -825,6 +852,7 @@ void SrsVkRenderer::InitDescriptors() {
 
 void SrsVkRenderer::InitPipelines() {
     InitBackgroundPipelines();
+    InitTrianglePipeline();
 }
 
 void SrsVkRenderer::InitBackgroundPipelines() {
@@ -904,21 +932,21 @@ void SrsVkRenderer::InitBackgroundPipelines() {
 
 void SrsVkRenderer::InitTrianglePipeline() {
     VkShaderModule vertShader;
-    if (!load_shader_module("../../src/sirius/shaders/triangle.vert.spv", device_, &vertShader)) {
-        fmt::print("Error when loading the triangle fragment shader \n");
+    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.vert.spv", device_, &vertShader)) {
+        fmt::print("Error when loading the triangle vertex shader \n");
     } else {
-        fmt::print("Triangle fragment shader loaded successfully");
+        fmt::print("Triangle vertex shader loaded successfully \n");
     }
 
     VkShaderModule fragShader;
-    if (!load_shader_module("../../src/sirius/shaders/triangle.frag.spv", device_, &fragShader)) {
+    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &fragShader)) {
         fmt::print("Error when loading the fragment shader \n");
     } else {
-        fmt::print("Triangle fragment shader loaded successfully");
+        fmt::print("Triangle fragment shader loaded successfully \n");
     }
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = init::pipeline_layout_create_info();
-    VK_CHECK(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &gradientPipelineLayout_));
+    VK_CHECK(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &trianglePipelineLayout_));
 
     PipelineBuilder pipelineBuilder;
     pipelineBuilder.pipelineLayout_ = trianglePipelineLayout_;
@@ -931,7 +959,7 @@ void SrsVkRenderer::InitTrianglePipeline() {
     pipelineBuilder.DisableDepthTest();
     pipelineBuilder.SetColorAttachmentFormat(drawImage_.imageFormat);
     pipelineBuilder.SetDepthFormat(VK_FORMAT_UNDEFINED);
-    pipelineBuilder.BuildPipeline(device_);
+    trianglePipeline_ = pipelineBuilder.BuildPipeline(device_);
 
     vkDestroyShaderModule(device_, vertShader, nullptr);
     vkDestroyShaderModule(device_, fragShader, nullptr);

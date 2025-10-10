@@ -54,13 +54,11 @@ VkPipeline sirius::PipelineBuilder::BuildPipeline(VkDevice device) {
     pipelineInfo.pDynamicState = &dynamicInfo;
 
     VkPipeline newPipeline;
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
-                                  nullptr, &newPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &newPipeline) != VK_SUCCESS) {
         fmt::println("failed to create pipeline");
         return VK_NULL_HANDLE; // failed to create graphics pipeline
-    } else {
-        return newPipeline;
     }
+    return newPipeline;
 }
 
 void sirius::PipelineBuilder::clear() {
@@ -89,13 +87,10 @@ void sirius::PipelineBuilder::clear() {
     shaderStages_.clear();
 }
 
-void sirius::PipelineBuilder::SetShaders(VkShaderModule vertShader,
-                                         VkShaderModule fragShader) {
+void sirius::PipelineBuilder::SetShaders(VkShaderModule vertShader, VkShaderModule fragShader) {
     shaderStages_.clear();
-    shaderStages_.emplace_back(init::pipeline_shader_stage_create_info(
-        VK_SHADER_STAGE_VERTEX_BIT, vertShader, nullptr));
-    shaderStages_.emplace_back(init::pipeline_shader_stage_create_info(
-        VK_SHADER_STAGE_FRAGMENT_BIT, fragShader, nullptr));
+    shaderStages_.emplace_back(init::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertShader));
+    shaderStages_.emplace_back(init::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragShader));
 }
 
 void sirius::PipelineBuilder::SetInputTopology(VkPrimitiveTopology topology) {

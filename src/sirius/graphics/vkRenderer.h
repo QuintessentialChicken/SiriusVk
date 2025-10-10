@@ -147,7 +147,7 @@ private:
 
     void DrawBackground(VkCommandBuffer cmd);
 
-    void DrawGeometry();
+    void DrawGeometry(VkCommandBuffer cmd);
 
 
     VkInstance instance_ = VK_NULL_HANDLE;
