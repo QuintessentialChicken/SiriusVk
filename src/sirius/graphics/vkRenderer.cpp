@@ -15,6 +15,7 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <array>
 #include <glm/glm.hpp>
 
 #include "window/wndProc.h"
@@ -28,10 +29,12 @@
 #include "core/utils.h"
 #include "initializers.h"
 
+#include <fmt/core.h>
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
-constexpr bool enableValidationLayers = true;
+constexpr bool kEnableValidationLayers = true;
 #endif
 
 namespace sirius {
@@ -261,7 +264,86 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline_);
+
+    GpuDrawPushConstants push_constants;
+    push_constants.worldMatrix = glm::mat4{ 1.f };
+    push_constants.vertexBuffer = rectangle.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &push_constants);
+    vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+
     vkCmdEndRendering(cmd);
+}
+
+AllocatedBuffer SrsVkRenderer::CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) {
+    // allocate buffer
+    VkBufferCreateInfo bufferInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    bufferInfo.pNext = nullptr;
+    bufferInfo.size = allocSize;
+
+    bufferInfo.usage = usage;
+
+    VmaAllocationCreateInfo vmaAllocationCreateInfo = {};
+    vmaAllocationCreateInfo.usage = memoryUsage;
+    vmaAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    AllocatedBuffer newBuffer{};
+
+    // allocate the buffer
+    VK_CHECK(vmaCreateBuffer(allocator_, &bufferInfo, &vmaAllocationCreateInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info));
+
+    return newBuffer;
+}
+
+void SrsVkRenderer::DestroyBuffer(const AllocatedBuffer& buffer) const {
+    vmaDestroyBuffer(allocator_, buffer.buffer, buffer.allocation);
+}
+
+GpuMeshBuffers SrsVkRenderer::UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) {
+    const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+    const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+    GpuMeshBuffers newBuffer{};
+
+    newBuffer.vertexBuffer = CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    VkBufferDeviceAddressInfo deviceAddressInfo { .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+
+    deviceAddressInfo.buffer = newBuffer.vertexBuffer.buffer;
+    newBuffer.vertexBufferAddress = vkGetBufferDeviceAddress(device_, &deviceAddressInfo);
+
+    newBuffer.indexBuffer = CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+
+    // Staging buffer to load data on and copy it to the GPU_ONLY buffer
+    AllocatedBuffer staging = CreateBuffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+    void* data = staging.allocation->GetMappedData();
+
+    // copy vertex buffer
+    memcpy(data, vertices.data(), vertexBufferSize);
+    // copy index buffer
+    memcpy(static_cast<char*>(data) + vertexBufferSize, indices.data(), indexBufferSize);
+
+    ImmediateSubmit([&](VkCommandBuffer cmd) {
+        VkBufferCopy vertexCopy{};
+        vertexCopy.dstOffset = 0;
+        vertexCopy.srcOffset = 0;
+        vertexCopy.size = vertexBufferSize;
+
+        vkCmdCopyBuffer(cmd, staging.buffer, newBuffer.vertexBuffer.buffer, 1, &vertexCopy);
+
+        VkBufferCopy indexCopy{ 0 };
+        indexCopy.dstOffset = 0;
+        indexCopy.srcOffset = vertexBufferSize;
+        indexCopy.size = indexBufferSize;
+
+        vkCmdCopyBuffer(cmd, staging.buffer, newBuffer.indexBuffer.buffer, 1, &indexCopy);
+    });
+
+    DestroyBuffer(staging);
+
+    return newBuffer;
 }
 
 void SrsVkRenderer::SpawnImguiWindow() {
@@ -271,19 +353,18 @@ void SrsVkRenderer::SpawnImguiWindow() {
     ImGui::NewFrame();
 
     if (ImGui::Begin("background")) {
-
-        ImGui::SliderFloat("Render Scale",&renderScale_, 0.3f, 1.f);
+        ImGui::SliderFloat("Render Scale", &renderScale_, 0.3f, 1.f);
 
         ComputeEffect& selected = computeEffects_[currentEffect_];
 
         ImGui::Text("Selected effect: ", selected.name);
 
-        ImGui::SliderInt("Effect Index", &currentEffect_,0, computeEffects_.size() - 1);
+        ImGui::SliderInt("Effect Index", &currentEffect_, 0, computeEffects_.size() - 1);
 
-        ImGui::InputFloat4("data1",(float*)& selected.data.data1);
-        ImGui::InputFloat4("data2",(float*)& selected.data.data2);
-        ImGui::InputFloat4("data3",(float*)& selected.data.data3);
-        ImGui::InputFloat4("data4",(float*)& selected.data.data4);
+        ImGui::InputFloat4("data1", (float*) &selected.data.data1);
+        ImGui::InputFloat4("data2", (float*) &selected.data.data2);
+        ImGui::InputFloat4("data3", (float*) &selected.data.data3);
+        ImGui::InputFloat4("data4", (float*) &selected.data.data4);
 
         ImGui::End();
     }
@@ -334,7 +415,7 @@ bool SrsVkRenderer::CheckValidationLayerSupport() {
 }
 
 void SrsVkRenderer::CreateInstance() {
-    if (enableValidationLayers && !CheckValidationLayerSupport()) {
+    if (kEnableValidationLayers && !CheckValidationLayerSupport()) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
     VkApplicationInfo appInfo{};
@@ -357,7 +438,7 @@ void SrsVkRenderer::CreateInstance() {
     createInfo.enabledExtensionCount = requiredExtensions.size();
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-    if (enableValidationLayers) {
+    if (kEnableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers_.size());
         createInfo.ppEnabledLayerNames = validationLayers_.data();
     } else {
@@ -464,7 +545,7 @@ void SrsVkRenderer::CreateLogicalDevice() {
     createInfo.ppEnabledExtensionNames = deviceExtensions_.data();
 
 
-    if (enableValidationLayers) {
+    if (kEnableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers_.size());
         createInfo.ppEnabledLayerNames = validationLayers_.data();
     } else {
@@ -853,6 +934,7 @@ void SrsVkRenderer::InitDescriptors() {
 void SrsVkRenderer::InitPipelines() {
     InitBackgroundPipelines();
     InitTrianglePipeline();
+    InitMeshPipeline();
 }
 
 void SrsVkRenderer::InitBackgroundPipelines() {
@@ -970,6 +1052,102 @@ void SrsVkRenderer::InitTrianglePipeline() {
     });
 }
 
+void SrsVkRenderer::InitMeshPipeline() {
+    VkShaderModule triangleFragShader;
+    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &triangleFragShader)) {
+        fmt::print("Error when building the triangle fragment shader module");
+    }
+    else {
+        fmt::print("Triangle fragment shader succesfully loaded");
+    }
+
+    VkShaderModule triangleVertexShader;
+    if (!load_shader_module("../../src/sirius/shaders/colored_triangle_mesh.vert.spv", device_, &triangleVertexShader)) {
+        fmt::print("Error when building the triangle vertex shader module");
+    }
+    else {
+        fmt::print("Triangle vertex shader succesfully loaded");
+    }
+
+    VkPushConstantRange bufferRange{};
+    bufferRange.offset = 0;
+    bufferRange.size = sizeof(GpuDrawPushConstants);
+    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = init::pipeline_layout_create_info();
+    pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+
+    VK_CHECK(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &meshPipelineLayout_));
+
+    PipelineBuilder pipelineBuilder;
+
+    //use the triangle layout we created
+    pipelineBuilder.pipelineLayout_ = meshPipelineLayout_;
+    //connecting the vertex and pixel shaders to the pipeline
+    pipelineBuilder.SetShaders(triangleVertexShader, triangleFragShader);
+    //it will draw triangles
+    pipelineBuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    //filled triangles
+    pipelineBuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
+    //no backface culling
+    pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    //no multisampling
+    pipelineBuilder.SetMultisamplingNone();
+    //no blending
+    pipelineBuilder.DisableBlending();
+
+    pipelineBuilder.DisableDepthTest();
+
+    //connect the image format we will draw into, from draw image
+    pipelineBuilder.SetColorAttachmentFormat(drawImage_.imageFormat);
+    pipelineBuilder.SetDepthFormat(VK_FORMAT_UNDEFINED);
+
+    //finally build the pipeline
+    meshPipeline_ = pipelineBuilder.BuildPipeline(device_);
+
+    //clean structures
+    vkDestroyShaderModule(device_, triangleFragShader, nullptr);
+    vkDestroyShaderModule(device_, triangleVertexShader, nullptr);
+
+    mainDeletionQueue_.PushFunction([&]() {
+        vkDestroyPipelineLayout(device_, meshPipelineLayout_, nullptr);
+        vkDestroyPipeline(device_, meshPipeline_, nullptr);
+    });
+}
+
+void SrsVkRenderer::InitDefaultData() {
+    std::array<Vertex,4> rectVertices;
+
+    rectVertices[0].position = {0.5,-0.5, 0};
+    rectVertices[1].position = {0.5,0.5, 0};
+    rectVertices[2].position = {-0.5,-0.5, 0};
+    rectVertices[3].position = {-0.5,0.5, 0};
+
+    rectVertices[0].color = {0,0, 0,1};
+    rectVertices[1].color = { 0.5,0.5,0.5 ,1};
+    rectVertices[2].color = { 1,0, 0,1 };
+    rectVertices[3].color = { 0,1, 0,1 };
+
+    std::array<uint32_t,6> rectIndices{};
+
+    rectIndices[0] = 0;
+    rectIndices[1] = 1;
+    rectIndices[2] = 2;
+
+    rectIndices[3] = 2;
+    rectIndices[4] = 1;
+    rectIndices[5] = 3;
+
+    rectangle = UploadMesh(rectIndices,rectVertices);
+
+    //delete the rectangle data on engine shutdown
+    mainDeletionQueue_.PushFunction([&](){
+        DestroyBuffer(rectangle.indexBuffer);
+        DestroyBuffer(rectangle.vertexBuffer);
+    });
+}
+
 void SrsVkRenderer::InitImgui() {
     IMGUI_CHECKVERSION();
 
@@ -1011,7 +1189,7 @@ void SrsVkRenderer::InitImgui() {
     info.ImageCount = 3;
     info.UseDynamicRendering = true;
 
-    info.PipelineInfoMain.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+    info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
     info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapChainImageFormat_;
     info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -1036,6 +1214,8 @@ void SrsVkRenderer::DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView) 
     vkCmdEndRendering(cmd);
 }
 
+
+// Record commands to a Command Buffer, submit them immediately to the GPU and wait for it to be finished with them
 void SrsVkRenderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
     VK_CHECK(vkResetFences(device_, 1, &immFence_));
     VK_CHECK(vkResetCommandBuffer(immCommandBuffer_, 0));

@@ -6,6 +6,7 @@ set(SHADER_SOURCES
         sky.comp
         colored_triangle.frag
         colored_triangle.vert
+        colored_triangle_mesh.vert
 )
 
 set(SHADER_SPV)

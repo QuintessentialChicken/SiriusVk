@@ -5,6 +5,7 @@
 #include "descriptors.h"
 
 #include "core/types.h"
+#include <fmt/core.h>
 
 namespace sirius {
 void DescriptorLayoutBuilder::AddBinding(uint32_t binding, VkDescriptorType type) {

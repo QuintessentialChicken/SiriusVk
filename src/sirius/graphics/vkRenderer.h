@@ -141,6 +141,10 @@ private:
 
     void InitTrianglePipeline();
 
+    void InitMeshPipeline();
+
+    void InitDefaultData();
+
     void InitImgui();
 
     void DrawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
@@ -149,6 +153,11 @@ private:
 
     void DrawGeometry(VkCommandBuffer cmd);
 
+    AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+
+    void DestroyBuffer(const AllocatedBuffer& buffer) const;
+
+    GpuMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     VkInstance instance_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
@@ -172,6 +181,12 @@ private:
 
     VkPipeline gradientPipeline_;
     VkPipelineLayout gradientPipelineLayout_;
+
+    VkPipeline meshPipeline_;
+    VkPipelineLayout meshPipelineLayout_;
+
+	GpuMeshBuffers rectangle;
+
 
     // immediate submit structures
     VkFence immFence_;
