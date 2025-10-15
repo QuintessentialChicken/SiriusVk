@@ -9,3 +9,5 @@ add_library(third-party
         imgui/imgui_impl_vulkan.cpp
         imgui/imgui_demo.cpp
 )
+
+add_subdirectory(fastgltf)

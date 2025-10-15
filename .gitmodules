@@ -1,0 +1,3 @@
+[submodule "src/sirius/third-party/fastgltf"]
+	path = src/sirius/third-party/fastgltf
+	url = https://github.com/spnda/fastgltf.git

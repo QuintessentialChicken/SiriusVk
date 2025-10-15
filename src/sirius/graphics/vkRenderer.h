@@ -8,11 +8,14 @@
 #include "core/types.h"
 #include <deque>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <vec4.hpp>
 #include <vulkan/vulkan_core.h>
 
 #include "descriptors.h"
+
+struct MeshAsset;
 
 namespace sirius {
 class DeletionQueue
@@ -70,6 +73,8 @@ public:
     void Draw();
 
     void SpawnImguiWindow();
+
+    GpuMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     void Shutdown();
 
@@ -157,7 +162,6 @@ private:
 
     void DestroyBuffer(const AllocatedBuffer& buffer) const;
 
-    GpuMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     VkInstance instance_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
@@ -186,6 +190,7 @@ private:
     VkPipelineLayout meshPipelineLayout_;
 
 	GpuMeshBuffers rectangle;
+    std::vector<std::shared_ptr<MeshAsset>> testMeshes_;
 
 
     // immediate submit structures

@@ -15,8 +15,11 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 #include <array>
 #include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
+
 
 #include "window/wndProc.h"
 #include <vulkan/vulkan_win32.h>
@@ -30,6 +33,8 @@
 #include "initializers.h"
 
 #include <fmt/core.h>
+
+#include "asset_loader.h"
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -263,6 +268,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    // Draws hardcoded triangle
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline_);
@@ -274,7 +280,21 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &push_constants);
     vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
+    // Draws rectangle from buffers
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+
+
+    glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
+    glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
+    projection[1][1] *= -1;
+    push_constants.worldMatrix = projection * view;
+    push_constants.vertexBuffer = testMeshes_[2]->meshBuffers.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &push_constants);
+    vkCmdBindIndexBuffer(cmd, testMeshes_[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    // Draws model
+    vkCmdDrawIndexed(cmd, testMeshes_[2]->surfaces[0].count, 1, testMeshes_[2]->surfaces[0].startIndex, 0, 0);
 
     vkCmdEndRendering(cmd);
 }
@@ -1118,7 +1138,7 @@ void SrsVkRenderer::InitMeshPipeline() {
 }
 
 void SrsVkRenderer::InitDefaultData() {
-    std::array<Vertex,4> rectVertices;
+    std::array<Vertex,4> rectVertices{};
 
     rectVertices[0].position = {0.5,-0.5, 0};
     rectVertices[1].position = {0.5,0.5, 0};
@@ -1147,6 +1167,8 @@ void SrsVkRenderer::InitDefaultData() {
         DestroyBuffer(rectangle.indexBuffer);
         DestroyBuffer(rectangle.vertexBuffer);
     });
+
+    testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 }
 
 void SrsVkRenderer::InitImgui() {
