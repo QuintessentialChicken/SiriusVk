@@ -58,6 +58,7 @@ void SrsVkRenderer::Init() {
     InitDescriptors();
     InitPipelines();
     InitImgui();
+    InitDefaultData();
     isInitialized_ = true;
 }
 
@@ -1055,18 +1056,18 @@ void SrsVkRenderer::InitTrianglePipeline() {
 void SrsVkRenderer::InitMeshPipeline() {
     VkShaderModule triangleFragShader;
     if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &triangleFragShader)) {
-        fmt::print("Error when building the triangle fragment shader module");
+        fmt::print("Error when building the triangle fragment shader module\n");
     }
     else {
-        fmt::print("Triangle fragment shader succesfully loaded");
+        fmt::print("Triangle fragment shader successfully loaded\n");
     }
 
     VkShaderModule triangleVertexShader;
     if (!load_shader_module("../../src/sirius/shaders/colored_triangle_mesh.vert.spv", device_, &triangleVertexShader)) {
-        fmt::print("Error when building the triangle vertex shader module");
+        fmt::print("Error when building the triangle vertex shader module\n");
     }
     else {
-        fmt::print("Triangle vertex shader succesfully loaded");
+        fmt::print("Triangle vertex shader successfully loaded\n");
     }
 
     VkPushConstantRange bufferRange{};
