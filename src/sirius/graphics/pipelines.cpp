@@ -147,6 +147,18 @@ void sirius::PipelineBuilder::DisableDepthTest() {
     depthStencil_.maxDepthBounds = 1.f;
 }
 
+void sirius::PipelineBuilder::EnableDepthTest(bool depthWriteEnable, VkCompareOp op) {
+    depthStencil_.depthTestEnable = VK_TRUE;
+    depthStencil_.depthWriteEnable = depthWriteEnable;
+    depthStencil_.depthCompareOp = op;
+    depthStencil_.depthBoundsTestEnable = VK_FALSE;
+    depthStencil_.stencilTestEnable = VK_FALSE;
+    depthStencil_.front = {};
+    depthStencil_.back = {};
+    depthStencil_.minDepthBounds = 0.f;
+    depthStencil_.maxDepthBounds = 1.f;
+}
+
 bool sirius::load_shader_module(const char* filePath, VkDevice device,
                                 VkShaderModule* outShaderModule) {
     // open the file. With cursor at the end

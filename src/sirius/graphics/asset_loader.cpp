@@ -13,7 +13,7 @@
 #include "fmt/compile.h"
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath) {
-    std::cout << "Loading GLTF: " << filePath << std::endl;
+    std::cout << "\n" << "Loading GLTF: " << filePath << "\n" << std::endl;
 
     fastgltf::Expected<fastgltf::GltfDataBuffer> result = fastgltf::GltfDataBuffer::FromPath(filePath);
     if (!result) {

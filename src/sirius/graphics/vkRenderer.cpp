@@ -65,6 +65,7 @@ void SrsVkRenderer::Init() {
     InitImgui();
     InitDefaultData();
     isInitialized_ = true;
+    std::cout << "Renderer initialized successfully \n" << "------------ Running ------------" << std::endl;
 }
 
 void SrsVkRenderer::Draw() {
@@ -115,7 +116,16 @@ void SrsVkRenderer::Draw() {
         .dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
     };
 
+    Utils::TransitionFlags depthBeforeGeoDrawFlags{
+        .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+        .srcAccessMask = VK_ACCESS_2_NONE,
+        .dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+        .dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    };
+
+
     Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, beforeGeoDrawFlags);
+    Utils::TransitionImage(cmd, depthImage_.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthBeforeGeoDrawFlags);
 
     DrawGeometry(cmd);
 
@@ -245,17 +255,18 @@ void SrsVkRenderer::DrawBackground(VkCommandBuffer cmd) {
 
 void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     VkRenderingAttachmentInfo colorAttachment = init::attachment_info(drawImage_.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo depthAttachment = init::attachment_info(depthImage_.imageView, nullptr, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-    VkRenderingInfo renderingInfo = init::rendering_info(drawExtent_, &colorAttachment, nullptr);
+    const VkRenderingInfo renderingInfo = init::rendering_info(drawExtent_, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline_);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline_);
 
     VkViewport viewport = {};
     viewport.x = 0;
     viewport.y = 0;
-    viewport.width = drawExtent_.width;
-    viewport.height = drawExtent_.height;
+    viewport.width = static_cast<float>(drawExtent_.width);
+    viewport.height = static_cast<float>(drawExtent_.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -268,29 +279,15 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    // Draws hardcoded triangle
-    vkCmdDraw(cmd, 3, 1, 0, 0);
+    GpuDrawPushConstants pushConstants;
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline_);
-
-    GpuDrawPushConstants push_constants;
-    push_constants.worldMatrix = glm::mat4{ 1.f };
-    push_constants.vertexBuffer = rectangle.vertexBufferAddress;
-
-    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &push_constants);
-    vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    // Draws rectangle from buffers
-    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-
-
-    glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
+    const glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
     glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
     projection[1][1] *= -1;
-    push_constants.worldMatrix = projection * view;
-    push_constants.vertexBuffer = testMeshes_[2]->meshBuffers.vertexBufferAddress;
+    pushConstants.worldMatrix = projection * view;
+    pushConstants.vertexBuffer = testMeshes_[2]->meshBuffers.vertexBufferAddress;
 
-    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &push_constants);
+    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &pushConstants);
     vkCmdBindIndexBuffer(cmd, testMeshes_[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     // Draws model
@@ -406,6 +403,11 @@ void SrsVkRenderer::Shutdown() {
 
             frame.deletionQueue.Flush();
         }
+        for (const auto& mesh : testMeshes_) {
+            DestroyBuffer(mesh->meshBuffers.indexBuffer);
+            DestroyBuffer(mesh->meshBuffers.vertexBuffer);
+        }
+
         mainDeletionQueue_.Flush();
     }
 }
@@ -758,6 +760,17 @@ void SrsVkRenderer::CreateSwapChain() {
     //allocate and create the image
     vmaCreateImage(allocator_, &drawImageInfo, &drawImageAllocInfo, &drawImage_.image, &drawImage_.allocation, nullptr);
 
+    depthImage_.imageFormat = VK_FORMAT_D32_SFLOAT;
+    depthImage_.imageExtent = drawImageExtent;
+    VkImageUsageFlags depthImageUsage{};
+    depthImageUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VkImageCreateInfo depthImageInfo = init::image_create_info(depthImage_.imageFormat, depthImageUsage, drawImageExtent);
+    vmaCreateImage(allocator_, &depthImageInfo, &drawImageAllocInfo, &depthImage_.image, &depthImage_.allocation, nullptr);
+
+    VkImageViewCreateInfo depthImageViewInfo = init::imageview_create_info(depthImage_.imageFormat, depthImage_.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkCreateImageView(device_, &depthImageViewInfo, nullptr, &depthImage_.imageView);
+
     //build a image-view for the draw image to use for rendering
     VkImageViewCreateInfo renderViewInfo{};
     renderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -777,6 +790,9 @@ void SrsVkRenderer::CreateSwapChain() {
     mainDeletionQueue_.PushFunction([this]() {
         vkDestroyImageView(device_, drawImage_.imageView, nullptr);
         vmaDestroyImage(allocator_, drawImage_.image, drawImage_.allocation);
+
+        vkDestroyImageView(device_, depthImage_.imageView, nullptr);
+        vmaDestroyImage(allocator_, depthImage_.image, depthImage_.allocation);
     });
 }
 
@@ -954,7 +970,6 @@ void SrsVkRenderer::InitDescriptors() {
 
 void SrsVkRenderer::InitPipelines() {
     InitBackgroundPipelines();
-    InitTrianglePipeline();
     InitMeshPipeline();
 }
 
@@ -1033,46 +1048,6 @@ void SrsVkRenderer::InitBackgroundPipelines() {
     });
 }
 
-void SrsVkRenderer::InitTrianglePipeline() {
-    VkShaderModule vertShader;
-    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.vert.spv", device_, &vertShader)) {
-        fmt::print("Error when loading the triangle vertex shader \n");
-    } else {
-        fmt::print("Triangle vertex shader loaded successfully \n");
-    }
-
-    VkShaderModule fragShader;
-    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &fragShader)) {
-        fmt::print("Error when loading the fragment shader \n");
-    } else {
-        fmt::print("Triangle fragment shader loaded successfully \n");
-    }
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = init::pipeline_layout_create_info();
-    VK_CHECK(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &trianglePipelineLayout_));
-
-    PipelineBuilder pipelineBuilder;
-    pipelineBuilder.pipelineLayout_ = trianglePipelineLayout_;
-    pipelineBuilder.SetShaders(vertShader, fragShader);
-    pipelineBuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pipelineBuilder.SetMultisamplingNone();
-    pipelineBuilder.DisableBlending();
-    pipelineBuilder.DisableDepthTest();
-    pipelineBuilder.SetColorAttachmentFormat(drawImage_.imageFormat);
-    pipelineBuilder.SetDepthFormat(VK_FORMAT_UNDEFINED);
-    trianglePipeline_ = pipelineBuilder.BuildPipeline(device_);
-
-    vkDestroyShaderModule(device_, vertShader, nullptr);
-    vkDestroyShaderModule(device_, fragShader, nullptr);
-
-    mainDeletionQueue_.PushFunction([&]() {
-        vkDestroyPipelineLayout(device_, trianglePipelineLayout_, nullptr);
-        vkDestroyPipeline(device_, trianglePipeline_, nullptr);
-    });
-}
-
 void SrsVkRenderer::InitMeshPipeline() {
     VkShaderModule triangleFragShader;
     if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &triangleFragShader)) {
@@ -1118,11 +1093,11 @@ void SrsVkRenderer::InitMeshPipeline() {
     //no blending
     pipelineBuilder.DisableBlending();
 
-    pipelineBuilder.DisableDepthTest();
+    pipelineBuilder.EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     //connect the image format we will draw into, from draw image
     pipelineBuilder.SetColorAttachmentFormat(drawImage_.imageFormat);
-    pipelineBuilder.SetDepthFormat(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.SetDepthFormat(depthImage_.imageFormat);
 
     //finally build the pipeline
     meshPipeline_ = pipelineBuilder.BuildPipeline(device_);
@@ -1138,36 +1113,6 @@ void SrsVkRenderer::InitMeshPipeline() {
 }
 
 void SrsVkRenderer::InitDefaultData() {
-    std::array<Vertex,4> rectVertices{};
-
-    rectVertices[0].position = {0.5,-0.5, 0};
-    rectVertices[1].position = {0.5,0.5, 0};
-    rectVertices[2].position = {-0.5,-0.5, 0};
-    rectVertices[3].position = {-0.5,0.5, 0};
-
-    rectVertices[0].color = {0,0, 0,1};
-    rectVertices[1].color = { 0.5,0.5,0.5 ,1};
-    rectVertices[2].color = { 1,0, 0,1 };
-    rectVertices[3].color = { 0,1, 0,1 };
-
-    std::array<uint32_t,6> rectIndices{};
-
-    rectIndices[0] = 0;
-    rectIndices[1] = 1;
-    rectIndices[2] = 2;
-
-    rectIndices[3] = 2;
-    rectIndices[4] = 1;
-    rectIndices[5] = 3;
-
-    rectangle = UploadMesh(rectIndices,rectVertices);
-
-    //delete the rectangle data on engine shutdown
-    mainDeletionQueue_.PushFunction([&](){
-        DestroyBuffer(rectangle.indexBuffer);
-        DestroyBuffer(rectangle.vertexBuffer);
-    });
-
     testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 }
 

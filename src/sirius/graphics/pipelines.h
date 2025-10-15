@@ -34,6 +34,8 @@ public:
 
     void DisableDepthTest();
 
+    void EnableDepthTest(bool depthWriteEnable, VkCompareOp op);
+
     VkPipelineLayout pipelineLayout_;
 private:
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages_;
