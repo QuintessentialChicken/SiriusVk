@@ -1,4 +1,5 @@
 add_library(engine INTERFACE)
+find_package(Vulkan REQUIRED)
 
 target_link_libraries(engine INTERFACE
         core

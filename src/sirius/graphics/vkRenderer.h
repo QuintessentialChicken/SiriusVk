@@ -76,6 +76,8 @@ public:
 
     GpuMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
+    void ResizeSwapChain();
+
     void Shutdown();
 
 private:
@@ -122,13 +124,15 @@ private:
 
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 
-    void CreateSwapChain();
+    void CreateSwapChain(uint32_t width, uint32_t height);
+
+    void DestroySwapChain();
 
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
-    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requestedWidth, uint32_t requestedHeight);
 
     void CreateImageViews();
 
@@ -143,8 +147,6 @@ private:
     void InitPipelines();
 
     void InitBackgroundPipelines();
-
-    void InitTrianglePipeline();
 
     void InitMeshPipeline();
 
@@ -174,6 +176,8 @@ private:
     std::vector<VkImageView> swapChainImageViews_;
     VkFormat swapChainImageFormat_ = {};
     VkExtent2D swapChainExtent_ = {};
+
+    bool resized_ = false;
 
     VmaAllocator allocator_ = nullptr;
     AllocatedImage drawImage_;

@@ -56,7 +56,7 @@ void SrsVkRenderer::Init() {
     PickPhysicalDevice();
     CreateLogicalDevice();
     InitAllocator();
-    CreateSwapChain();
+    CreateSwapChain(windowWidth, windowHeight);
     CreateImageViews();
     InitCommandBuffers();
     InitSyncObjects();
@@ -74,7 +74,12 @@ void SrsVkRenderer::Draw() {
     GetCurrentFrame().deletionQueue.Flush();
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, GetCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+    VkResult e = vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, GetCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
+    if (e == VK_ERROR_OUT_OF_DATE_KHR) {
+        resized_ = true;
+        return;
+    }
 
     VK_CHECK(vkResetFences(device_, 1, &GetCurrentFrame().renderFence));
 
@@ -232,8 +237,10 @@ void SrsVkRenderer::Draw() {
     presentInfo.pImageIndices = &imageIndex;
 
     VkResult presentResult = vkQueuePresentKHR(graphicsQueue_, &presentInfo);
-
-
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR) {
+        resized_ = true;
+        return;
+    }
     //increase the number of frames drawn
     frameNumber_++;
 }
@@ -281,6 +288,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     GpuDrawPushConstants pushConstants;
 
+
     const glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
     glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
     projection[1][1] *= -1;
@@ -292,6 +300,14 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     // Draws model
     vkCmdDrawIndexed(cmd, testMeshes_[2]->surfaces[0].count, 1, testMeshes_[2]->surfaces[0].startIndex, 0, 0);
+
+
+    pushConstants.vertexBuffer = rectangle.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &pushConstants);
+    vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
     vkCmdEndRendering(cmd);
 }
@@ -664,12 +680,12 @@ SrsVkRenderer::SwapChainSupportDetails SrsVkRenderer::QuerySwapChainSupport(VkPh
     return details;
 }
 
-void SrsVkRenderer::CreateSwapChain() {
+void SrsVkRenderer::CreateSwapChain(uint32_t width, uint32_t height) {
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice_);
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
+    VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities, width, height);
 
     // Request one more image than minimum to avoid having to potentially wait for the driver to
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -796,6 +812,22 @@ void SrsVkRenderer::CreateSwapChain() {
     });
 }
 
+void SrsVkRenderer::ResizeSwapChain() {
+    vkDeviceWaitIdle(device_);
+    DestroySwapChain();
+
+    CreateSwapChain(windowWidth, windowHeight);
+    resized_ = false;
+}
+
+void SrsVkRenderer::DestroySwapChain() {
+    vkDestroySwapchainKHR(device_, swapChain_, nullptr);
+
+    for (const auto& view : swapChainImageViews_) {
+        vkDestroyImageView(device_, view, nullptr);
+    }
+}
+
 VkSurfaceFormatKHR SrsVkRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
     for (const auto& availableFormat : availableFormats) {
         if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -814,14 +846,14 @@ VkPresentModeKHR SrsVkRenderer::ChooseSwapPresentMode(const std::vector<VkPresen
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D SrsVkRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D SrsVkRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requestedWidth, uint32_t requestedHeight) {
     // If the currentExtent is set to the maximum value of uint32_t it means that the extend of the swapchain determines the surface size
     if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
         return capabilities.currentExtent;
     }
     VkExtent2D actualExtent = {
-        static_cast<uint32_t>(windowWidth),
-        static_cast<uint32_t>(windowHeight)
+        requestedWidth,
+        requestedHeight
     };
 
     actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -1090,8 +1122,8 @@ void SrsVkRenderer::InitMeshPipeline() {
     pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
     //no multisampling
     pipelineBuilder.SetMultisamplingNone();
-    //no blending
-    pipelineBuilder.DisableBlending();
+
+    pipelineBuilder.EnableBlendingAdditive();
 
     pipelineBuilder.EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -1113,6 +1145,35 @@ void SrsVkRenderer::InitMeshPipeline() {
 }
 
 void SrsVkRenderer::InitDefaultData() {
+    std::array<Vertex,4> rectVertices{};
+
+    rectVertices[0].position = {0.5,-0.5, 0};
+    rectVertices[1].position = {0.5,0.5, 0};
+    rectVertices[2].position = {-0.5,-0.5, 0};
+    rectVertices[3].position = {-0.5,0.5, 0};
+
+    rectVertices[0].color = {1,0, 0,1};
+    rectVertices[1].color = { 0,0,0 ,0.9};
+    rectVertices[2].color = { 0,0, 0,0.9};
+    rectVertices[3].color = { 0,0, 0,0.9};
+
+    std::array<uint32_t,6> rectIndices{};
+
+    rectIndices[0] = 0;
+    rectIndices[1] = 1;
+    rectIndices[2] = 2;
+
+    rectIndices[3] = 2;
+    rectIndices[4] = 1;
+    rectIndices[5] = 3;
+
+    rectangle = UploadMesh(rectIndices,rectVertices);
+
+    //delete the rectangle data on engine shutdown
+    mainDeletionQueue_.PushFunction([&](){
+        DestroyBuffer(rectangle.indexBuffer);
+        DestroyBuffer(rectangle.vertexBuffer);
+    });
     testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 }
 

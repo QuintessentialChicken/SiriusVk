@@ -8,4 +8,4 @@ add_library(core STATIC
         utils.h
 )
 
-target_link_libraries(core PRIVATE fmt::fmt)
+target_link_libraries(core PRIVATE fmt::fmt vma)

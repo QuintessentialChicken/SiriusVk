@@ -159,6 +159,28 @@ void sirius::PipelineBuilder::EnableDepthTest(bool depthWriteEnable, VkCompareOp
     depthStencil_.maxDepthBounds = 1.f;
 }
 
+void sirius::PipelineBuilder::EnableBlendingAdditive() {
+    colorBlendAttachment_.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment_.blendEnable = VK_TRUE;
+    colorBlendAttachment_.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment_.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment_.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment_.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment_.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment_.alphaBlendOp = VK_BLEND_OP_ADD;
+}
+
+void sirius::PipelineBuilder::EnableBlendingAlphablend() {
+    colorBlendAttachment_.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment_.blendEnable = VK_TRUE;
+    colorBlendAttachment_.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment_.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment_.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment_.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment_.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment_.alphaBlendOp = VK_BLEND_OP_ADD;
+}
+
 bool sirius::load_shader_module(const char* filePath, VkDevice device,
                                 VkShaderModule* outShaderModule) {
     // open the file. With cursor at the end

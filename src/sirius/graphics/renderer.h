@@ -11,6 +11,7 @@ public:
     static void Init();
     static void Draw();
     static void SpawnImguiWindow();
+    static void ResizeViewport();
 private:
     static SrsVkRenderer vkRenderer_;
 };

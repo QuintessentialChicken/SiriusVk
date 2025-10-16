@@ -12,6 +12,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include "imgui_impl_win32.h"
+#include "graphics/renderer.h"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace sirius {
@@ -82,9 +84,13 @@ LRESULT SrsWindow::HandleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
             break;
         case WM_KILLFOCUS:
             break;
-        case WM_SIZE:
+        case WM_SIZE: {
+            bool changed = false;
+            if (LOWORD(lParam) != windowWidth || HIWORD(lParam) != windowHeight) changed = true;
             windowWidth = LOWORD(lParam);
             windowHeight = HIWORD(lParam);
+            if (changed) SrsRenderer::ResizeViewport();
+        }
         default: {
         }
     }

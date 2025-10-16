@@ -1,4 +1,3 @@
-find_package(Vulkan REQUIRED)
 
 add_library(graphics STATIC
         vkRenderer.cpp
@@ -15,7 +14,7 @@ add_library(graphics STATIC
         asset_loader.h
 )
 
-target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
+target_include_directories(graphics PUBLIC ${CMAKE_SOURCE_DIR}/sirius)
 target_include_directories(graphics PRIVATE "$ENV{VULKAN_SDK}/Include")
 target_include_directories(graphics PRIVATE "$ENV{VULKAN_SDK}/Include/glm")
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius/third-party/imgui)

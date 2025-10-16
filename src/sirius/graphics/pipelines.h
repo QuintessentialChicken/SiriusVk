@@ -36,6 +36,10 @@ public:
 
     void EnableDepthTest(bool depthWriteEnable, VkCompareOp op);
 
+    void EnableBlendingAdditive();
+
+    void EnableBlendingAlphablend();
+
     VkPipelineLayout pipelineLayout_;
 private:
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages_;

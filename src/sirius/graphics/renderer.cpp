@@ -19,4 +19,8 @@ void SrsRenderer::Draw() {
 void SrsRenderer::SpawnImguiWindow() {
     vkRenderer_.SpawnImguiWindow();
 }
+
+void SrsRenderer::ResizeViewport() {
+    vkRenderer_.ResizeSwapChain();
+}
 }
