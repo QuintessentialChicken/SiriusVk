@@ -85,11 +85,8 @@ LRESULT SrsWindow::HandleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         case WM_KILLFOCUS:
             break;
         case WM_SIZE: {
-            bool changed = false;
-            if (LOWORD(lParam) != windowWidth || HIWORD(lParam) != windowHeight) changed = true;
             windowWidth = LOWORD(lParam);
             windowHeight = HIWORD(lParam);
-            if (changed) SrsRenderer::ResizeViewport();
         }
         default: {
         }

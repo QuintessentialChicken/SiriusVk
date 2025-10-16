@@ -55,6 +55,7 @@ Fsm::FsmReturn app::runGame() {
         SetState(SHUTDOWN_SYSTEM);
         return CONTINUE;
     }
+    if (sirius::SrsRenderer::ResizeRequested()) sirius::SrsRenderer::ResizeViewport();
     sirius::SrsRenderer::SpawnImguiWindow();
     sirius::SrsRenderer::Draw();
     return CONTINUE;

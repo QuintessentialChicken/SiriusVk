@@ -78,6 +78,8 @@ public:
 
     void ResizeSwapChain();
 
+    bool ResizeRequested();
+
     void Shutdown();
 
 private:
@@ -177,7 +179,7 @@ private:
     VkFormat swapChainImageFormat_ = {};
     VkExtent2D swapChainExtent_ = {};
 
-    bool resized_ = false;
+    bool resizeRequested_ = false;
 
     VmaAllocator allocator_ = nullptr;
     AllocatedImage drawImage_;

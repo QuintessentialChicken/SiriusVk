@@ -76,8 +76,8 @@ void SrsVkRenderer::Draw() {
     uint32_t imageIndex;
 
     VkResult e = vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, GetCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
-    if (e == VK_ERROR_OUT_OF_DATE_KHR) {
-        resized_ = true;
+    if (e == VK_ERROR_OUT_OF_DATE_KHR || e == VK_SUBOPTIMAL_KHR) {
+        resizeRequested_ = true;
         return;
     }
 
@@ -238,7 +238,7 @@ void SrsVkRenderer::Draw() {
 
     VkResult presentResult = vkQueuePresentKHR(graphicsQueue_, &presentInfo);
     if (presentResult == VK_ERROR_OUT_OF_DATE_KHR) {
-        resized_ = true;
+        resizeRequested_ = true;
         return;
     }
     //increase the number of frames drawn
@@ -738,8 +738,8 @@ void SrsVkRenderer::CreateSwapChain(uint32_t width, uint32_t height) {
     swapChainExtent_ = extent;
 
     VkExtent3D drawImageExtent = {
-        windowHeight,
-        windowHeight,
+        width,
+        height,
         1
     };
 
@@ -766,7 +766,6 @@ void SrsVkRenderer::CreateSwapChain(uint32_t width, uint32_t height) {
     //optimal tiling, which means the image is stored on the best gpu format
     drawImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     drawImageInfo.usage = drawImageUsages;
-
 
     //for the draw image, we want to allocate it from gpu local memory
     VmaAllocationCreateInfo drawImageAllocInfo = {};
@@ -817,7 +816,12 @@ void SrsVkRenderer::ResizeSwapChain() {
     DestroySwapChain();
 
     CreateSwapChain(windowWidth, windowHeight);
-    resized_ = false;
+    CreateImageViews();
+    resizeRequested_ = false;
+}
+
+bool SrsVkRenderer::ResizeRequested() {
+    return resizeRequested_;
 }
 
 void SrsVkRenderer::DestroySwapChain() {
@@ -826,6 +830,13 @@ void SrsVkRenderer::DestroySwapChain() {
     for (const auto& view : swapChainImageViews_) {
         vkDestroyImageView(device_, view, nullptr);
     }
+
+    for (const auto& image : swapChainImages_) {
+        vkDestroyImage(device_, image, nullptr);
+    }
+
+    vkDestroyImage(device_, drawImage_.image, nullptr);
+    vkDestroyImage(device_, depthImage_.image, nullptr);
 }
 
 VkSurfaceFormatKHR SrsVkRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -862,6 +873,7 @@ VkExtent2D SrsVkRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capab
 }
 
 void SrsVkRenderer::CreateImageViews() {
+    swapChainImageViews_.clear();
     swapChainImageViews_.resize(swapChainImages_.size());
     for (size_t i = 0; i < swapChainImages_.size(); i++) {
         VkImageViewCreateInfo createInfo{};

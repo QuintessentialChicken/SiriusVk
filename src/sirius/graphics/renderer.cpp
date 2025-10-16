@@ -23,4 +23,8 @@ void SrsRenderer::SpawnImguiWindow() {
 void SrsRenderer::ResizeViewport() {
     vkRenderer_.ResizeSwapChain();
 }
+
+bool SrsRenderer::ResizeRequested() {
+    return vkRenderer_.ResizeRequested();
+}
 }
