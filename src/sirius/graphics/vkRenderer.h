@@ -44,6 +44,8 @@ struct FrameData {
     VkCommandPool commandPool;
     VkCommandBuffer mainCommandBuffer;
 
+    DescriptorAllocatorGrowable frameDescriptors;
+
     DeletionQueue deletionQueue;
 };
 

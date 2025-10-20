@@ -998,6 +998,22 @@ void SrsVkRenderer::InitDescriptors() {
 
         vkDestroyDescriptorSetLayout(device_, drawImageDescriptorLayout_, nullptr);
     });
+
+    for (int i = 0; i < kFrameOverlap; i++) {
+        std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4}
+        };
+
+        frames_[i].frameDescriptors = DescriptorAllocatorGrowable{};
+        frames_[i].frameDescriptors.Init(device_, 1000, frameSizes);
+
+        mainDeletionQueue_.PushFunction([&, i]() {
+            frames_[i].frameDescriptors.DestroyPools(device_);
+        });
+    }
 }
 
 void SrsVkRenderer::InitPipelines() {
