@@ -38,8 +38,8 @@ public:
 };
 
 struct FrameData {
-    VkSemaphore swapchainSemaphore, renderSemaphore;
     VkFence renderFence;
+    VkSemaphore acquireSemaphore;
 
     VkCommandPool commandPool;
     VkCommandBuffer mainCommandBuffer;
@@ -183,6 +183,7 @@ private:
     std::vector<VkImageView> swapChainImageViews_;
     VkFormat swapChainImageFormat_ = {};
     VkExtent2D swapChainExtent_ = {};
+    std::vector<VkSemaphore> submitSemaphores_;
 
     // immediate submit structures
     VkFence immFence_;

@@ -76,7 +76,7 @@ void SrsVkRenderer::Draw() {
 
     uint32_t imageIndex;
 
-    VkResult e = vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, GetCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult e = vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, GetCurrentFrame().acquireSemaphore, VK_NULL_HANDLE, &imageIndex);
     if (e == VK_ERROR_OUT_OF_DATE_KHR || e == VK_SUBOPTIMAL_KHR) {
         resizeRequested_ = true;
         return;
@@ -188,7 +188,7 @@ void SrsVkRenderer::Draw() {
     VkSemaphoreSubmitInfo waitSemaphoreInfo{};
     waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
     waitSemaphoreInfo.pNext = nullptr;
-    waitSemaphoreInfo.semaphore = GetCurrentFrame().swapchainSemaphore;
+    waitSemaphoreInfo.semaphore = GetCurrentFrame().acquireSemaphore;
     waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
     waitSemaphoreInfo.deviceIndex = 0;
     waitSemaphoreInfo.value = 1;
@@ -196,7 +196,7 @@ void SrsVkRenderer::Draw() {
     VkSemaphoreSubmitInfo signalSemaphoreInfo{};
     signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
     signalSemaphoreInfo.pNext = nullptr;
-    signalSemaphoreInfo.semaphore = GetCurrentFrame().renderSemaphore;
+    signalSemaphoreInfo.semaphore = submitSemaphores_[imageIndex];
     signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
     signalSemaphoreInfo.deviceIndex = 0;
     signalSemaphoreInfo.value = 1;
@@ -232,7 +232,7 @@ void SrsVkRenderer::Draw() {
     presentInfo.pSwapchains = &swapChain_;
     presentInfo.swapchainCount = 1;
 
-    presentInfo.pWaitSemaphores = &GetCurrentFrame().renderSemaphore;
+    presentInfo.pWaitSemaphores = &submitSemaphores_[imageIndex];
     presentInfo.waitSemaphoreCount = 1;
 
     presentInfo.pImageIndices = &imageIndex;
@@ -428,14 +428,17 @@ void SrsVkRenderer::Shutdown() {
             vkDestroyCommandPool(device_, frame.commandPool, nullptr);
 
             vkDestroyFence(device_, frame.renderFence, nullptr);
-            vkDestroySemaphore(device_, frame.renderSemaphore, nullptr);
-            vkDestroySemaphore(device_, frame.swapchainSemaphore, nullptr);
+            vkDestroySemaphore(device_, frame.acquireSemaphore, nullptr);
 
             frame.deletionQueue.Flush();
         }
         for (const auto& mesh : testMeshes_) {
             DestroyBuffer(mesh->meshBuffers.indexBuffer);
             DestroyBuffer(mesh->meshBuffers.vertexBuffer);
+        }
+
+        for (const auto semaphore :  submitSemaphores_) {
+            vkDestroySemaphore(device_, semaphore, nullptr);
         }
 
         mainDeletionQueue_.Flush();
@@ -964,8 +967,12 @@ void SrsVkRenderer::InitSyncObjects() {
     for (int i = 0; i < kFrameOverlap; i++) {
         VK_CHECK(vkCreateFence(device_, &fenceInfo, nullptr, &frames_[i].renderFence));
 
-        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &frames_[i].swapchainSemaphore));
-        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &frames_[i].renderSemaphore));
+        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &frames_[i].acquireSemaphore));
+    }
+
+    submitSemaphores_.resize(swapChainImages_.size());
+    for (int i = 0; i < swapChainImages_.size(); i++) {
+        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &submitSemaphores_[i]));
     }
 
     VK_CHECK(vkCreateFence(device_, &fenceInfo, nullptr, &immFence_));
