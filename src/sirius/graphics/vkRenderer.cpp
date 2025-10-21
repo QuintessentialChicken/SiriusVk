@@ -72,6 +72,7 @@ void SrsVkRenderer::Draw() {
     VK_CHECK(vkWaitForFences(device_, 1, &GetCurrentFrame().renderFence, true, 1000000000));
 
     GetCurrentFrame().deletionQueue.Flush();
+    GetCurrentFrame().frameDescriptors.ClearPools(device_);
 
     uint32_t imageIndex;
 
@@ -286,8 +287,21 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    GpuDrawPushConstants pushConstants;
+    AllocatedBuffer sceneDataBuffer{CreateBuffer(sizeof(GpuSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
+    GetCurrentFrame().deletionQueue.PushFunction([this, sceneDataBuffer] { DestroyBuffer(sceneDataBuffer); });
+
+    auto* sceneUniformData{static_cast<GpuSceneData*>(sceneDataBuffer.allocation->GetMappedData())};
+    *sceneUniformData = sceneData_;
+
+    VkDescriptorSet globalDescriptor{GetCurrentFrame().frameDescriptors.Allocate(device_, sceneDataDescriptorLayout_)};
+
+    DescriptorWriter writer;
+    writer.WriteBuffer(0, sceneDataBuffer.buffer, sizeof(GpuSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.UpdateSet(device_, globalDescriptor);
+
+
+    GpuDrawPushConstants pushConstants;
 
     const glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
     glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
@@ -973,10 +987,7 @@ void SrsVkRenderer::InitAllocator() {
 
 void SrsVkRenderer::InitDescriptors() {
     //create a descriptor pool that will hold 10 sets with 1 image each
-    std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
-    {
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
-    };
+    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = { {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1} };
 
     globalDescriptorAllocator_.InitPool(device_, 10, sizes);
 
@@ -986,6 +997,13 @@ void SrsVkRenderer::InitDescriptors() {
         builder.AddBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         drawImageDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_COMPUTE_BIT);
     }
+
+    {
+        DescriptorLayoutBuilder builder;
+        builder.AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        sceneDataDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
+
     drawImageDescriptors_ = globalDescriptorAllocator_.allocate(device_, drawImageDescriptorLayout_);
 
     DescriptorWriter writer;
@@ -999,7 +1017,7 @@ void SrsVkRenderer::InitDescriptors() {
         vkDestroyDescriptorSetLayout(device_, drawImageDescriptorLayout_, nullptr);
     });
 
-    for (int i = 0; i < kFrameOverlap; i++) {
+    for (auto & frame : frames_) {
         std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
@@ -1007,11 +1025,11 @@ void SrsVkRenderer::InitDescriptors() {
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4}
         };
 
-        frames_[i].frameDescriptors = DescriptorAllocatorGrowable{};
-        frames_[i].frameDescriptors.Init(device_, 1000, frameSizes);
+        frame.frameDescriptors = DescriptorAllocatorGrowable{};
+        frame.frameDescriptors.Init(device_, 1000, frameSizes);
 
-        mainDeletionQueue_.PushFunction([&, i]() {
-            frames_[i].frameDescriptors.DestroyPools(device_);
+        mainDeletionQueue_.PushFunction([&] {
+            frame.frameDescriptors.DestroyPools(device_);
         });
     }
 }

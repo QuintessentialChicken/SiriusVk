@@ -168,6 +168,9 @@ private:
 
     void DestroyBuffer(const AllocatedBuffer& buffer) const;
 
+    void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+    FrameData& GetCurrentFrame() { return frames_[frameNumber_ % kFrameOverlap]; }
 
     VkInstance instance_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
@@ -181,20 +184,23 @@ private:
     VkFormat swapChainImageFormat_ = {};
     VkExtent2D swapChainExtent_ = {};
 
-    bool resizeRequested_ = false;
+    // immediate submit structures
+    VkFence immFence_;
+    VkCommandBuffer immCommandBuffer_;
+    VkCommandPool immCommandPool_;
 
     VmaAllocator allocator_ = nullptr;
     AllocatedImage drawImage_;
     VkExtent2D drawExtent_;
     AllocatedImage depthImage_;
-
     DescriptorAllocator globalDescriptorAllocator_;
     VkDescriptorSet drawImageDescriptors_;
     VkDescriptorSetLayout drawImageDescriptorLayout_;
+    GpuSceneData sceneData_;
+    VkDescriptorSetLayout sceneDataDescriptorLayout_;
 
     VkPipeline gradientPipeline_;
     VkPipelineLayout gradientPipelineLayout_;
-
     VkPipeline meshPipeline_;
     VkPipelineLayout meshPipelineLayout_;
 
@@ -202,19 +208,14 @@ private:
     std::vector<std::shared_ptr<MeshAsset>> testMeshes_;
 
 
-    // immediate submit structures
-    VkFence immFence_;
-    VkCommandBuffer immCommandBuffer_;
-    VkCommandPool immCommandPool_;
 
+    bool resizeRequested_ = false;
 
-    void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
     bool isInitialized_ = false;
 
     int frameNumber_ {0};
     FrameData frames_[kFrameOverlap] {};
-    FrameData& GetCurrentFrame() { return frames_[frameNumber_ % kFrameOverlap]; }
 
     std::vector<ComputeEffect> computeEffects_;
     int currentEffect_ = 0;
@@ -223,8 +224,6 @@ private:
     VkPipelineLayout trianglePipelineLayout_;
     VkPipeline trianglePipeline_;
 
-
     DeletionQueue mainDeletionQueue_;
-
 };
 }

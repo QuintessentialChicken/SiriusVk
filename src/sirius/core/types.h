@@ -47,6 +47,15 @@ struct GpuDrawPushConstants {
     VkDeviceAddress vertexBuffer{};
 };
 
+struct GpuSceneData {
+    glm::mat4 viewMatrix{};
+    glm::mat4 projectionMatrix{};
+    glm::mat4 viewProjectionMatrix{};
+    glm::vec4 ambientColor;
+    glm::vec4 sunlightDirection;
+    glm::vec4 sunlightColor;
+};
+
 #define VK_CHECK(x)                                                     \
 do {                                                                \
 VkResult err = x;                                               \
