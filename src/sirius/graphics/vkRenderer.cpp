@@ -223,10 +223,6 @@ void SrsVkRenderer::Draw() {
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
 
-    presentInfo.swapchainCount = 0;
-    presentInfo.pSwapchains = nullptr;
-    presentInfo.pWaitSemaphores = nullptr;
-    presentInfo.waitSemaphoreCount = 0;
     presentInfo.pImageIndices = nullptr;
 
     presentInfo.pSwapchains = &swapChain_;
