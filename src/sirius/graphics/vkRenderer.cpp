@@ -283,6 +283,15 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    VkDescriptorSet imageSet = GetCurrentFrame().frameDescriptors.Allocate(device_, singleImageDescriptorLayout_);
+    {
+        DescriptorWriter writer;
+        writer.WriteImage(0, errorCheckerboardImage_.imageView, defaultSamplerNearest_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.UpdateSet(device_, imageSet);
+    }
+
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineLayout_, 0, 1, &imageSet, 0, nullptr);
+
     AllocatedBuffer sceneDataBuffer{CreateBuffer(sizeof(GpuSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
     GetCurrentFrame().deletionQueue.PushFunction([this, sceneDataBuffer] { DestroyBuffer(sceneDataBuffer); });
@@ -343,6 +352,85 @@ AllocatedBuffer SrsVkRenderer::CreateBuffer(size_t allocSize, VkBufferUsageFlags
 
 void SrsVkRenderer::DestroyBuffer(const AllocatedBuffer& buffer) const {
     vmaDestroyBuffer(allocator_, buffer.buffer, buffer.allocation);
+}
+
+AllocatedImage SrsVkRenderer::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
+    AllocatedImage newImage;
+    newImage.imageFormat = format;
+    newImage.imageExtent = size;
+
+    VkImageCreateInfo imageInfo = init::image_create_info(format, usage, size);
+    if (mipmapped) {
+        imageInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2((std::max)(size.width, size.height)))) + 1;
+    }
+
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VK_CHECK(vmaCreateImage(allocator_, &imageInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+
+    VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+    if (format == VK_FORMAT_D32_SFLOAT) {
+        aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+    }
+
+    VkImageViewCreateInfo viewCreateInfo = init::imageview_create_info(format, newImage.image, aspectFlags);
+    viewCreateInfo.subresourceRange.levelCount = imageInfo.mipLevels;
+
+    VK_CHECK(vkCreateImageView(device_, &viewCreateInfo, nullptr, &newImage.imageView));
+
+    return newImage;
+}
+
+AllocatedImage SrsVkRenderer::CreateImage(void *data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
+    size_t data_size = size.depth * size.width * size.height * 4;
+    AllocatedBuffer uploadbuffer = CreateBuffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    memcpy(uploadbuffer.info.pMappedData, data, data_size);
+
+    AllocatedImage newImage = CreateImage(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
+
+    ImmediateSubmit([&](VkCommandBuffer cmd) {
+      constexpr Utils::TransitionFlags beforeTransferFlags{
+            .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+            .srcAccessMask = 0,
+            .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        };
+        Utils::TransitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, beforeTransferFlags);
+
+        VkBufferImageCopy copyRegion = {};
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+        copyRegion.imageExtent = size;
+
+        // copy the buffer into the image
+        vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+        Utils::TransitionFlags afterTransferFlags{
+            .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,    // TODO What if the image is used somewhere else?
+            .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+        };
+        Utils::TransitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, afterTransferFlags);
+    });
+
+    DestroyBuffer(uploadbuffer);
+
+    return newImage;
+}
+
+void SrsVkRenderer::DestroyImage(const AllocatedImage &image) const {
+    vkDestroyImageView(device_, image.imageView, nullptr);
+    vmaDestroyImage(allocator_, image.image, image.allocation);
 }
 
 GpuMeshBuffers SrsVkRenderer::UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) {
@@ -1007,6 +1095,12 @@ void SrsVkRenderer::InitDescriptors() {
         sceneDataDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     }
 
+    {
+        DescriptorLayoutBuilder builder;
+        builder.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        singleImageDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
+
     drawImageDescriptors_ = globalDescriptorAllocator_.allocate(device_, drawImageDescriptorLayout_);
 
     DescriptorWriter writer;
@@ -1118,8 +1212,8 @@ void SrsVkRenderer::InitBackgroundPipelines() {
 }
 
 void SrsVkRenderer::InitMeshPipeline() {
-    VkShaderModule triangleFragShader;
-    if (!load_shader_module("../../src/sirius/shaders/colored_triangle.frag.spv", device_, &triangleFragShader)) {
+    VkShaderModule fragShader;
+    if (!load_shader_module("../../src/sirius/shaders/textured_image.frag.spv", device_, &fragShader)) {
         fmt::print("Error when building the triangle fragment shader module\n");
     }
     else {
@@ -1140,8 +1234,10 @@ void SrsVkRenderer::InitMeshPipeline() {
     bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = init::pipeline_layout_create_info();
-    pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &singleImageDescriptorLayout_;
 
     VK_CHECK(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &meshPipelineLayout_));
 
@@ -1150,7 +1246,7 @@ void SrsVkRenderer::InitMeshPipeline() {
     //use the triangle layout we created
     pipelineBuilder.pipelineLayout_ = meshPipelineLayout_;
     //connecting the vertex and pixel shaders to the pipeline
-    pipelineBuilder.SetShaders(triangleVertexShader, triangleFragShader);
+    pipelineBuilder.SetShaders(triangleVertexShader, fragShader);
     //it will draw triangles
     pipelineBuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     //filled triangles
@@ -1160,7 +1256,7 @@ void SrsVkRenderer::InitMeshPipeline() {
     //no multisampling
     pipelineBuilder.SetMultisamplingNone();
 
-    pipelineBuilder.EnableBlendingAdditive();
+    pipelineBuilder.DisableBlending();
 
     pipelineBuilder.EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -1172,7 +1268,7 @@ void SrsVkRenderer::InitMeshPipeline() {
     meshPipeline_ = pipelineBuilder.BuildPipeline(device_);
 
     //clean structures
-    vkDestroyShaderModule(device_, triangleFragShader, nullptr);
+    vkDestroyShaderModule(device_, fragShader, nullptr);
     vkDestroyShaderModule(device_, triangleVertexShader, nullptr);
 
     mainDeletionQueue_.PushFunction([&]() {
@@ -1210,6 +1306,45 @@ void SrsVkRenderer::InitDefaultData() {
     mainDeletionQueue_.PushFunction([&](){
         DestroyBuffer(rectangle.indexBuffer);
         DestroyBuffer(rectangle.vertexBuffer);
+    });
+
+    //3 default textures, white, grey, black. 1 pixel each
+    uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+    whiteImage_ = CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+    greyImage_ = CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+    blackImage_ = CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    // checkerboard image
+    const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+    std::array<uint32_t, 16 *16 > pixels{}; //for 16x16 checkerboard texture
+    for (int x = 0; x < 16; x++) {
+        for (int y = 0; y < 16; y++) {
+            pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+        }
+    }
+   errorCheckerboardImage_ = CreateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    VkSamplerCreateInfo samplerCreateInfo = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+    vkCreateSampler(device_, &samplerCreateInfo, nullptr, &defaultSamplerNearest_);
+
+    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+    vkCreateSampler(device_, &samplerCreateInfo, nullptr, &defaultSamplerLinear_);
+
+   mainDeletionQueue_.PushFunction([&]{
+        vkDestroySampler(device_,defaultSamplerNearest_,nullptr);
+        vkDestroySampler(device_,defaultSamplerLinear_,nullptr);
+
+        DestroyImage(whiteImage_);
+        DestroyImage(greyImage_);
+        DestroyImage(blackImage_);
+        DestroyImage(errorCheckerboardImage_);
     });
     testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 }

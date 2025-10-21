@@ -7,6 +7,7 @@ set(SHADER_SOURCES
         colored_triangle.frag
         colored_triangle.vert
         colored_triangle_mesh.vert
+        textured_image.frag
 )
 
 set(SHADER_SPV)

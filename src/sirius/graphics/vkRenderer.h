@@ -168,6 +168,12 @@ private:
 
     void DestroyBuffer(const AllocatedBuffer& buffer) const;
 
+    AllocatedImage CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+
+    AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+
+    void DestroyImage(const AllocatedImage& image) const;
+
     void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
     FrameData& GetCurrentFrame() { return frames_[frameNumber_ % kFrameOverlap]; }
@@ -208,7 +214,15 @@ private:
 	GpuMeshBuffers rectangle;
     std::vector<std::shared_ptr<MeshAsset>> testMeshes_;
 
+    AllocatedImage whiteImage_;
+    AllocatedImage blackImage_;
+    AllocatedImage greyImage_;
+    AllocatedImage errorCheckerboardImage_;
 
+    VkDescriptorSetLayout singleImageDescriptorLayout_;
+
+    VkSampler defaultSamplerLinear_;
+    VkSampler defaultSamplerNearest_;
 
     bool resizeRequested_ = false;
 
