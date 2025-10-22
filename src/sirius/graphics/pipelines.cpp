@@ -11,7 +11,7 @@
 #include "fmt/base.h"
 #include "initializers.h"
 
-VkPipeline sirius::PipelineBuilder::BuildPipeline(VkDevice device) {
+VkPipeline sirius::PipelineBuilder::BuildPipeline(VkDevice device) const {
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.pNext = nullptr;
@@ -61,7 +61,7 @@ VkPipeline sirius::PipelineBuilder::BuildPipeline(VkDevice device) {
     return newPipeline;
 }
 
-void sirius::PipelineBuilder::clear() {
+void sirius::PipelineBuilder::Clear() {
     inputAssembly_ = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
     };
@@ -170,7 +170,7 @@ void sirius::PipelineBuilder::EnableBlendingAdditive() {
     colorBlendAttachment_.alphaBlendOp = VK_BLEND_OP_ADD;
 }
 
-void sirius::PipelineBuilder::EnableBlendingAlphablend() {
+void sirius::PipelineBuilder::EnableBlendingAlpha() {
     colorBlendAttachment_.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment_.blendEnable = VK_TRUE;
     colorBlendAttachment_.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -181,8 +181,8 @@ void sirius::PipelineBuilder::EnableBlendingAlphablend() {
     colorBlendAttachment_.alphaBlendOp = VK_BLEND_OP_ADD;
 }
 
-bool sirius::load_shader_module(const char* filePath, VkDevice device,
-                                VkShaderModule* outShaderModule) {
+bool sirius::LoadShaderModule(const char* filePath, VkDevice device,
+                              VkShaderModule* outShaderModule) {
     // open the file. With cursor at the end
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
@@ -194,7 +194,7 @@ bool sirius::load_shader_module(const char* filePath, VkDevice device,
     // because the cursor is at the end, it gives the size directly in bytes
     size_t fileSize = (size_t) file.tellg();
 
-    // spirv expects the buffer to be on uint32, so make sure to reserve a int
+    // spirv expects the buffer to be on uint32, so make sure to reserve an int
     // vector big enough for the entire file
     std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
 
@@ -212,7 +212,7 @@ bool sirius::load_shader_module(const char* filePath, VkDevice device,
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.pNext = nullptr;
 
-    // codeSize has to be in bytes, so multply the ints in the buffer by size of
+    // codeSize has to be in bytes, so multiply the ints in the buffer by size of
     // int to know the real size of the buffer
     createInfo.codeSize = buffer.size() * sizeof(uint32_t);
     createInfo.pCode = buffer.data();

@@ -12,7 +12,7 @@
 #include "fastgltf/glm_element_traits.hpp"
 #include "fmt/compile.h"
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath) {
+std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath) {
     std::cout << "\n" << "Loading GLTF: " << filePath << "\n" << std::endl;
 
     fastgltf::Expected<fastgltf::GltfDataBuffer> result = fastgltf::GltfDataBuffer::FromPath(filePath);
@@ -34,9 +34,9 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::Sr
         return {};
     }
 
-    std::vector<std::shared_ptr<MeshAsset>> meshes;
+    std::vector<std::shared_ptr<MeshAsset> > meshes;
 
-    // use the same vectors for all meshes so that the memory doesnt reallocate as
+    // use the same vectors for all meshes so that the memory doesn't reallocate as
     // often
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
@@ -45,7 +45,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::Sr
 
         newMesh.name = mesh.name;
 
-        // clear the mesh arrays each mesh, we dont want to merge them by error
+        // clear the mesh arrays each mesh, we don't want to merge them by error
         indices.clear();
         vertices.clear();
 
@@ -58,13 +58,12 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::Sr
 
             // load indexes
             {
-                fastgltf::Accessor& indexaccessor = gltf.accessors[primitive.indicesAccessor.value()];
-                indices.reserve(indices.size() + indexaccessor.count);
+                fastgltf::Accessor& indexAccessor = gltf.accessors[primitive.indicesAccessor.value()];
+                indices.reserve(indices.size() + indexAccessor.count);
 
-                fastgltf::iterateAccessor<std::uint32_t>(gltf, indexaccessor,
-                    [&](const std::uint32_t idx) {
-                        indices.push_back(idx + initialVtx);
-                    });
+                fastgltf::iterateAccessor<std::uint32_t>(gltf, indexAccessor, [&](const std::uint32_t idx) {
+                    indices.push_back(idx + initialVtx);
+                });
             }
 
             // load vertex positions
@@ -72,41 +71,37 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::Sr
                 fastgltf::Accessor& posAccessor = gltf.accessors[primitive.findAttribute("POSITION")->accessorIndex];
                 vertices.resize(vertices.size() + posAccessor.count);
 
-                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
-                    [&](const glm::vec3 v, const size_t index) {
-                        Vertex newVertex{};
-                        newVertex.position = v;
-                        newVertex.normal = { 1, 0, 0 };
-                        newVertex.color = glm::vec4 { 1.f };
-                        newVertex.uvX = 0;
-                        newVertex.uvY = 0;
-                        vertices[initialVtx + index] = newVertex;
-                    });
+                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor, [&](const glm::vec3 v, const size_t index) {
+                    Vertex newVertex{};
+                    newVertex.position = v;
+                    newVertex.normal = {1, 0, 0};
+                    newVertex.color = glm::vec4{1.f};
+                    newVertex.uvX = 0;
+                    newVertex.uvY = 0;
+                    vertices[initialVtx + index] = newVertex;
+                });
             }
 
             // load vertex normals
             if (auto normals = primitive.findAttribute("NORMAL"); normals != primitive.attributes.end()) {
-                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
-                    [&](const glm::vec3 v, const size_t index) {
-                        vertices[initialVtx + index].normal = v;
-                    });
+                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex], [&](const glm::vec3 v, const size_t index) {
+                    vertices[initialVtx + index].normal = v;
+                });
             }
 
             // load UVs
             if (auto uv = primitive.findAttribute("TEXCOORD_0"); uv != primitive.attributes.end()) {
-                fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
-                    [&](const glm::vec2 v, const size_t index) {
-                        vertices[initialVtx + index].uvX = v.x;
-                        vertices[initialVtx + index].uvY = v.y;
-                    });
+                fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex], [&](const glm::vec2 v, const size_t index) {
+                    vertices[initialVtx + index].uvX = v.x;
+                    vertices[initialVtx + index].uvY = v.y;
+                });
             }
 
             // load vertex colors
             if (auto colors = primitive.findAttribute("COLOR_0"); colors != primitive.attributes.end()) {
-                fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
-                    [&](const glm::vec4 v, const size_t index) {
-                        vertices[initialVtx + index].color = v;
-                    });
+                fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex], [&](const glm::vec4 v, const size_t index) {
+                    vertices[initialVtx + index].color = v;
+                });
             }
             newMesh.surfaces.push_back(newSurface);
         }
@@ -124,5 +119,4 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::Sr
     }
 
     return meshes;
-
 }

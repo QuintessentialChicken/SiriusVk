@@ -10,11 +10,11 @@
 namespace sirius {
 class PipelineBuilder {
 public:
-    PipelineBuilder() { clear(); }
+    PipelineBuilder() { Clear(); }
 
-    VkPipeline BuildPipeline(VkDevice device);
+    VkPipeline BuildPipeline(VkDevice device) const;
 
-    void clear();
+    void Clear();
 
     void SetShaders(VkShaderModule vertShader, VkShaderModule fragShader);
 
@@ -38,19 +38,20 @@ public:
 
     void EnableBlendingAdditive();
 
-    void EnableBlendingAlphablend();
+    void EnableBlendingAlpha();
 
-    VkPipelineLayout pipelineLayout_;
+    VkPipelineLayout pipelineLayout_{};
+
 private:
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages_;
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly_;
-    VkPipelineRasterizationStateCreateInfo rasterizer_;
-    VkPipelineColorBlendAttachmentState colorBlendAttachment_;
-    VkPipelineMultisampleStateCreateInfo multisampling_;
-    VkPipelineDepthStencilStateCreateInfo depthStencil_;
-    VkPipelineRenderingCreateInfo renderInfo_;
-    VkFormat colorAttachmentFormat_;
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly_{};
+    VkPipelineRasterizationStateCreateInfo rasterizer_{};
+    VkPipelineColorBlendAttachmentState colorBlendAttachment_{};
+    VkPipelineMultisampleStateCreateInfo multisampling_{};
+    VkPipelineDepthStencilStateCreateInfo depthStencil_{};
+    VkPipelineRenderingCreateInfo renderInfo_{};
+    VkFormat colorAttachmentFormat_{};
 };
 
-bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule);
+bool LoadShaderModule(const char* filePath, VkDevice device, VkShaderModule* outShaderModule);
 }

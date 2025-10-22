@@ -4,23 +4,23 @@
 
 #include "entrypoint_engine.h"
 
-static int g_MainReturnValue = 0;
+static int mainReturnValue = 0;
 
-static bool callMainOnce()
-{
-    g_MainReturnValue = Main();
+static bool CallMainOnce() {
+    mainReturnValue = Main();
     return false;
 }
 
 // Call Main if game does not assign Entry point
-bool (*g_pProjectMainPrologue)() = nullptr;
-bool (*g_pProjectMainOrDoOneLoop)() = callMainOnce;
+bool (* projectMainPrologue)() = nullptr;
+
+bool (* projectMainOrDoOneLoop)() = CallMainOnce;
 
 int main() {
-    if (g_pProjectMainPrologue()) {
+    if (projectMainPrologue()) {
         bool carryOn = true;
         while (carryOn) {
-            carryOn = g_pProjectMainOrDoOneLoop();
+            carryOn = projectMainOrDoOneLoop();
         }
     }
     return 0;

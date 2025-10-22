@@ -5,27 +5,25 @@
 #pragma once
 
 #include "core/fsm.h"
-#include "graphics/vkRenderer.h"
 
-class app : public Fsm {
+class App final : public Fsm {
 public:
-
     enum {
-        INIT_SYSTEM = 0,
-        RUN_GAME,
-        SHUTDOWN_SYSTEM
+        kInitSystem = 0,
+        kRunGame,
+        kShutdownSystem
     };
 
     FsmReturn UpdateState(signed short state) override;
+
     // Implement state machine here later to handle Initialization, Game loop and teardown
     // App can inherit from state machine class, RunOneIteration is part of state machine class
-    FsmReturn init();
+    FsmReturn Init();
 
-    FsmReturn shutdown();
+    static FsmReturn Shutdown();
 
-    FsmReturn runGame();
+    FsmReturn RunGame();
+
 private:
-    bool isSystemInitialized = false;
+    bool isSystemInitialized_ = false;
 };
-
-

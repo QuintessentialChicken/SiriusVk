@@ -6,18 +6,18 @@
 //
 // Created by Leon on 16/09/2025.
 //
-app my_app;
+App myApp;
 
-bool Main_Prologue() {
+bool MainPrologue() {
     std::cout << "Hello World!" << std::endl;
     return true;
 }
 
-bool Main_OneLoopIteration() {
-    return my_app.RunOneIteration();
+bool MainOneLoopIteration() {
+    return myApp.RunOneIteration();
 }
 
-SET_APP_ENTRY_POINTS(Main_Prologue, Main_OneLoopIteration)
+SET_APP_ENTRY_POINTS(MainPrologue, MainOneLoopIteration)
 
 int Main() {
     assert(false && "Should never reach here, Sirius is using App style entry points");

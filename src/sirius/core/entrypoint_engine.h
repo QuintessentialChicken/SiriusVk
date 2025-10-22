@@ -5,9 +5,10 @@
 #pragma once
 
 
+extern bool (* projectMainPrologue)();
 
-extern bool (*g_pProjectMainPrologue)();
-extern bool (*g_pProjectMainOrDoOneLoop)();
+extern bool (* projectMainOrDoOneLoop)();
+
 extern int Main();
 
 #define SET_APP_ENTRY_POINTS(pro, loop) \
@@ -15,9 +16,7 @@ static struct app_entry_point_setter_t \
 { \
 app_entry_point_setter_t() \
 { \
-g_pProjectMainPrologue = pro; \
-g_pProjectMainOrDoOneLoop = loop; \
+projectMainPrologue = pro; \
+projectMainOrDoOneLoop = loop; \
 } \
-} app_entry_point_setter_instance; \
-
-
+} app_entry_point_setter_instance;

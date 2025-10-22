@@ -4,10 +4,8 @@
 
 #include "utils.h"
 
-#include <iostream>
-
 namespace sirius {
-void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, TransitionFlags flags) {
+void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, const TransitionFlags& flags) {
     VkImageMemoryBarrier2 imageBarrier{};
     imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     imageBarrier.pNext = nullptr;
@@ -32,7 +30,7 @@ void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout cu
     imageBarrier.subresourceRange = subresourceRange;
     imageBarrier.image = image;
 
-    VkDependencyInfo depInfo {};
+    VkDependencyInfo depInfo{};
     depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     depInfo.pNext = nullptr;
 
@@ -42,8 +40,8 @@ void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout cu
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-    void Utils::CopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend) {
-    VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+void Utils::CopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend) {
+    VkImageBlit2 blitRegion{.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr};
 
     blitRegion.srcOffsets[1].x = static_cast<int32_t>(srcExtend.width);
     blitRegion.srcOffsets[1].y = static_cast<int32_t>(srcExtend.height);
@@ -63,7 +61,7 @@ void Utils::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout cu
     blitRegion.dstSubresource.layerCount = 1;
     blitRegion.dstSubresource.mipLevel = 0;
 
-    VkBlitImageInfo2 blitInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
+    VkBlitImageInfo2 blitInfo{.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr};
     blitInfo.dstImage = destination;
     blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     blitInfo.srcImage = source;

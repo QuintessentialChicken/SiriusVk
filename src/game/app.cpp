@@ -8,39 +8,38 @@
 #include <optional>
 
 #include "graphics/renderer.h"
-#include "third-party/imgui/imgui_impl_vulkan.h"
 #include "third-party/imgui/imgui_impl_win32.h"
 #include "window/window.h"
 #include "window/wndProc.h"
 
-Fsm::FsmReturn app::UpdateState(signed short state) {
+Fsm::FsmReturn App::UpdateState(signed short state) {
     switch (state) {
-        case INIT_SYSTEM:
-            return init();
-        case RUN_GAME:
-            return runGame();
-        case SHUTDOWN_SYSTEM:
-            return shutdown();
+        case kInitSystem:
+            return Init();
+        case kRunGame:
+            return RunGame();
+        case kShutdownSystem:
+            return Shutdown();
         default:
-            return UNHANDLED;
+            return kUnhandled;
     }
 }
 
-Fsm::FsmReturn app::init() {
+Fsm::FsmReturn App::Init() {
     if (!hwndMain) {
         hwndMain = sirius::SrsWindow::CreateDeviceWindow();
     }
     sirius::SrsWindow::SetWindowTitle("Sirius Vulkan");
     sirius::SrsRenderer::Init();
-    SetState(RUN_GAME);
-    return CONTINUE;
+    SetState(kRunGame);
+    return kContinue;
 }
 
-Fsm::FsmReturn app::shutdown() {
-    return EXIT;
+Fsm::FsmReturn App::Shutdown() {
+    return kExit;
 }
 
-Fsm::FsmReturn app::runGame() {
+Fsm::FsmReturn App::RunGame() {
     MSG message;
     std::optional<int> exitCode = {};
     if (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
@@ -52,11 +51,11 @@ Fsm::FsmReturn app::runGame() {
         DispatchMessage(&message);
     }
     if (exitCode == 0) {
-        SetState(SHUTDOWN_SYSTEM);
-        return CONTINUE;
+        SetState(kShutdownSystem);
+        return kContinue;
     }
     if (sirius::SrsRenderer::ResizeRequested()) sirius::SrsRenderer::ResizeViewport();
     sirius::SrsRenderer::SpawnImguiWindow();
     sirius::SrsRenderer::Draw();
-    return CONTINUE;
+    return kContinue;
 }

@@ -9,10 +9,15 @@ namespace sirius {
 class SrsRenderer {
 public:
     static void Init();
+
     static void Draw();
+
     static void SpawnImguiWindow();
+
     static void ResizeViewport();
+
     static bool ResizeRequested();
+
 private:
     static SrsVkRenderer vkRenderer_;
 };

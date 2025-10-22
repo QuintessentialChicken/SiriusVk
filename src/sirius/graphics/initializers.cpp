@@ -2,6 +2,7 @@
 // Created by Lms on 29/09/2025.
 //
 
+// ReSharper disable CppInconsistentNaming
 #include "initializers.h"
 
 namespace init {
@@ -42,8 +43,8 @@ VkSubmitInfo2 submit_info(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo*
     return info;
 }
 
-VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear ,VkImageLayout layout) {
-    VkRenderingAttachmentInfo colorAttachment {};
+VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear, VkImageLayout layout) {
+    VkRenderingAttachmentInfo colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAttachment.pNext = nullptr;
 
@@ -59,7 +60,7 @@ VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear 
 }
 
 VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout) {
-    VkRenderingAttachmentInfo depthAttachment {};
+    VkRenderingAttachmentInfo depthAttachment{};
     depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depthAttachment.pNext = nullptr;
 
@@ -73,11 +74,11 @@ VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout 
 }
 
 VkRenderingInfo rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
-    VkRenderingInfo renderInfo {};
+    VkRenderingInfo renderInfo{};
     renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     renderInfo.pNext = nullptr;
 
-    renderInfo.renderArea = VkRect2D { VkOffset2D { 0, 0 }, renderExtent };
+    renderInfo.renderArea = VkRect2D{VkOffset2D{0, 0}, renderExtent};
     renderInfo.layerCount = 1;
     renderInfo.colorAttachmentCount = 1;
     renderInfo.pColorAttachments = colorAttachment;
@@ -88,7 +89,7 @@ VkRenderingInfo rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInf
 }
 
 VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry) {
-    VkPipelineShaderStageCreateInfo info {};
+    VkPipelineShaderStageCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     info.pNext = nullptr;
 
@@ -102,7 +103,7 @@ VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageF
 }
 
 VkPipelineLayoutCreateInfo pipeline_layout_create_info() {
-    VkPipelineLayoutCreateInfo info {};
+    VkPipelineLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     info.pNext = nullptr;
 
@@ -139,7 +140,7 @@ VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlag
 }
 
 VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags) {
-    // build a image-view for the depth image to use for rendering
+    // build an image view for the depth image to use for rendering
     VkImageViewCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.pNext = nullptr;

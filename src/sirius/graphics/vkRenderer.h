@@ -18,22 +18,21 @@
 struct MeshAsset;
 
 namespace sirius {
-class DeletionQueue
-{
+class DeletionQueue {
 public:
-    std::deque<std::function<void()>> deletors_;
+    std::deque<std::function<void()> > deleters_;
 
     void PushFunction(std::function<void()>&& function) {
-        deletors_.push_back(function);
+        deleters_.push_back(function);
     }
 
     void Flush() {
         // reverse iterate the deletion queue to execute all the functions
-        for (auto it = deletors_.rbegin(); it != deletors_.rend(); it++) {
+        for (auto it = deleters_.rbegin(); it != deleters_.rend(); it++) {
             (*it)(); //call functors
         }
 
-        deletors_.clear();
+        deleters_.clear();
     }
 };
 
@@ -132,11 +131,11 @@ private:
 
     void DestroySwapChain();
 
-    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
-    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
-    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requestedWidth, uint32_t requestedHeight);
+    static VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requestedWidth, uint32_t requestedHeight);
 
     void CreateImageViews();
 
@@ -211,8 +210,8 @@ private:
     VkPipeline meshPipeline_;
     VkPipelineLayout meshPipelineLayout_;
 
-	GpuMeshBuffers rectangle;
-    std::vector<std::shared_ptr<MeshAsset>> testMeshes_;
+    GpuMeshBuffers rectangle;
+    std::vector<std::shared_ptr<MeshAsset> > testMeshes_;
 
     AllocatedImage whiteImage_;
     AllocatedImage blackImage_;
@@ -229,12 +228,12 @@ private:
 
     bool isInitialized_ = false;
 
-    int frameNumber_ {0};
-    FrameData frames_[kFrameOverlap] {};
+    int frameNumber_{0};
+    FrameData frames_[kFrameOverlap]{};
 
     std::vector<ComputeEffect> computeEffects_;
     int currentEffect_ = 0;
-	float renderScale_ = 1.f;
+    float renderScale_ = 1.f;
 
     VkPipelineLayout trianglePipelineLayout_;
     VkPipeline trianglePipeline_;

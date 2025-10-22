@@ -101,8 +101,8 @@ void SrsVkRenderer::Draw() {
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
 
-    // transition our main draw image into general layout so we can write into it
-    // we will overwrite it all so we dont care about what the older layout was
+    // transition our main draw image into general layout so we can write into it.
+    // we will overwrite it all so we don't care about what the older layout was
     Utils::TransitionFlags beforeComputeFlags{
         .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
         .srcAccessMask = 0,
@@ -283,8 +283,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    VkDescriptorSet imageSet = GetCurrentFrame().frameDescriptors.Allocate(device_, singleImageDescriptorLayout_);
-    {
+    VkDescriptorSet imageSet = GetCurrentFrame().frameDescriptors.Allocate(device_, singleImageDescriptorLayout_); {
         DescriptorWriter writer;
         writer.WriteImage(0, errorCheckerboardImage_.imageView, defaultSamplerNearest_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         writer.UpdateSet(device_, imageSet);
@@ -308,7 +307,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     GpuDrawPushConstants pushConstants;
 
-    const glm::mat4 view = glm::translate(glm::vec3{ 0,0,-2 });
+    const glm::mat4 view = glm::translate(glm::vec3{0, 0, -2});
     glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
     projection[1][1] *= -1;
     pushConstants.worldMatrix = projection * view;
@@ -333,7 +332,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
 AllocatedBuffer SrsVkRenderer::CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) {
     // allocate buffer
-    VkBufferCreateInfo bufferInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.pNext = nullptr;
     bufferInfo.size = allocSize;
 
@@ -355,7 +354,7 @@ void SrsVkRenderer::DestroyBuffer(const AllocatedBuffer& buffer) const {
 }
 
 AllocatedImage SrsVkRenderer::CreateImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
-    AllocatedImage newImage;
+    AllocatedImage newImage{};
     newImage.imageFormat = format;
     newImage.imageExtent = size;
 
@@ -383,16 +382,16 @@ AllocatedImage SrsVkRenderer::CreateImage(VkExtent3D size, VkFormat format, VkIm
     return newImage;
 }
 
-AllocatedImage SrsVkRenderer::CreateImage(void *data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
-    size_t data_size = size.depth * size.width * size.height * 4;
-    AllocatedBuffer uploadbuffer = CreateBuffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+AllocatedImage SrsVkRenderer::CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
+    size_t dataSize = size.depth * size.width * size.height * 4;
+    AllocatedBuffer uploadBuffer = CreateBuffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    memcpy(uploadbuffer.info.pMappedData, data, data_size);
+    memcpy(uploadBuffer.info.pMappedData, data, dataSize);
 
-    AllocatedImage newImage = CreateImage(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
+    const AllocatedImage newImage = CreateImage(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
 
     ImmediateSubmit([&](VkCommandBuffer cmd) {
-      constexpr Utils::TransitionFlags beforeTransferFlags{
+        constexpr Utils::TransitionFlags beforeTransferFlags{
             .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
             .srcAccessMask = 0,
             .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
@@ -412,23 +411,23 @@ AllocatedImage SrsVkRenderer::CreateImage(void *data, VkExtent3D size, VkFormat 
         copyRegion.imageExtent = size;
 
         // copy the buffer into the image
-        vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
         Utils::TransitionFlags afterTransferFlags{
             .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,    // TODO What if the image is used somewhere else?
+            .dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // TODO What if the image is used somewhere else?
             .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
         };
         Utils::TransitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, afterTransferFlags);
     });
 
-    DestroyBuffer(uploadbuffer);
+    DestroyBuffer(uploadBuffer);
 
     return newImage;
 }
 
-void SrsVkRenderer::DestroyImage(const AllocatedImage &image) const {
+void SrsVkRenderer::DestroyImage(const AllocatedImage& image) const {
     vkDestroyImageView(device_, image.imageView, nullptr);
     vmaDestroyImage(allocator_, image.image, image.allocation);
 }
@@ -440,7 +439,7 @@ GpuMeshBuffers SrsVkRenderer::UploadMesh(std::span<uint32_t> indices, std::span<
     GpuMeshBuffers newBuffer{};
 
     newBuffer.vertexBuffer = CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    VkBufferDeviceAddressInfo deviceAddressInfo { .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+    VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
 
     deviceAddressInfo.buffer = newBuffer.vertexBuffer.buffer;
     newBuffer.vertexBufferAddress = vkGetBufferDeviceAddress(device_, &deviceAddressInfo);
@@ -465,7 +464,7 @@ GpuMeshBuffers SrsVkRenderer::UploadMesh(std::span<uint32_t> indices, std::span<
 
         vkCmdCopyBuffer(cmd, staging.buffer, newBuffer.vertexBuffer.buffer, 1, &vertexCopy);
 
-        VkBufferCopy indexCopy{ 0 };
+        VkBufferCopy indexCopy{0};
         indexCopy.dstOffset = 0;
         indexCopy.srcOffset = vertexBufferSize;
         indexCopy.size = indexBufferSize;
@@ -491,12 +490,12 @@ void SrsVkRenderer::SpawnImguiWindow() {
 
         ImGui::Text("Selected effect: ", selected.name);
 
-        ImGui::SliderInt("Effect Index", &currentEffect_, 0, computeEffects_.size() - 1);
+        ImGui::SliderInt("Effect Index", &currentEffect_, 0, static_cast<int>(computeEffects_.size()) - 1);
 
-        ImGui::InputFloat4("data1", (float*) &selected.data.data1);
-        ImGui::InputFloat4("data2", (float*) &selected.data.data2);
-        ImGui::InputFloat4("data3", (float*) &selected.data.data3);
-        ImGui::InputFloat4("data4", (float*) &selected.data.data4);
+        ImGui::InputFloat4("data1", reinterpret_cast<float*>(&selected.data.data1));
+        ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
+        ImGui::InputFloat4("data3", reinterpret_cast<float*>(&selected.data.data3));
+        ImGui::InputFloat4("data4", reinterpret_cast<float*>(&selected.data.data4));
 
         ImGui::End();
     }
@@ -521,7 +520,7 @@ void SrsVkRenderer::Shutdown() {
             DestroyBuffer(mesh->meshBuffers.vertexBuffer);
         }
 
-        for (const auto semaphore :  submitSemaphores_) {
+        for (const auto semaphore : submitSemaphores_) {
             vkDestroySemaphore(device_, semaphore, nullptr);
         }
 
@@ -650,12 +649,12 @@ void SrsVkRenderer::CreateLogicalDevice() {
     VkPhysicalDeviceVulkan12Features supported12{};
     supported12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 
-    VkPhysicalDeviceFeatures2 supported_features{};
-    supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supported_features.pNext = &supported12;
+    VkPhysicalDeviceFeatures2 supportedFeatures{};
+    supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supportedFeatures.pNext = &supported12;
     supported12.pNext = &supported13;
 
-    vkGetPhysicalDeviceFeatures2(physicalDevice_, &supported_features);
+    vkGetPhysicalDeviceFeatures2(physicalDevice_, &supportedFeatures);
 
     // Create needed feature structs
     VkPhysicalDeviceVulkan13Features features13{};
@@ -844,7 +843,7 @@ void SrsVkRenderer::CreateSwapChain(uint32_t width, uint32_t height) {
         1
     };
 
-    //hardcoding the draw format to 32 bit float
+    //hardcoding the draw format to 32-bit float
     drawImage_.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
     drawImage_.imageExtent = drawImageExtent;
 
@@ -887,7 +886,7 @@ void SrsVkRenderer::CreateSwapChain(uint32_t width, uint32_t height) {
     VkImageViewCreateInfo depthImageViewInfo = init::imageview_create_info(depthImage_.imageFormat, depthImage_.image, VK_IMAGE_ASPECT_DEPTH_BIT);
     vkCreateImageView(device_, &depthImageViewInfo, nullptr, &depthImage_.imageView);
 
-    //build a image-view for the draw image to use for rendering
+    //build an image view for the draw image to use for rendering
     VkImageViewCreateInfo renderViewInfo{};
     renderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     renderViewInfo.pNext = nullptr;
@@ -1008,18 +1007,18 @@ void SrsVkRenderer::InitCommandBuffers() {
     commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandPoolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-    for (int i = 0; i < kFrameOverlap; i++) {
-        VK_CHECK(vkCreateCommandPool(device_, &commandPoolInfo, nullptr, &frames_[i].commandPool));
+    for (auto& frame : frames_) {
+        VK_CHECK(vkCreateCommandPool(device_, &commandPoolInfo, nullptr, &frame.commandPool));
 
         // allocate the default command buffer that we will use for rendering
         VkCommandBufferAllocateInfo cmdAllocInfo = {};
         cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmdAllocInfo.pNext = nullptr;
-        cmdAllocInfo.commandPool = frames_[i].commandPool;
+        cmdAllocInfo.commandPool = frame.commandPool;
         cmdAllocInfo.commandBufferCount = 1;
         cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-        VK_CHECK(vkAllocateCommandBuffers(device_, &cmdAllocInfo, &frames_[i].mainCommandBuffer));
+        VK_CHECK(vkAllocateCommandBuffers(device_, &cmdAllocInfo, &frame.mainCommandBuffer));
     }
 
     VK_CHECK(vkCreateCommandPool(device_, &commandPoolInfo, nullptr, &immCommandPool_));
@@ -1048,10 +1047,10 @@ void SrsVkRenderer::InitSyncObjects() {
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    for (int i = 0; i < kFrameOverlap; i++) {
-        VK_CHECK(vkCreateFence(device_, &fenceInfo, nullptr, &frames_[i].renderFence));
+    for (auto& frame : frames_) {
+        VK_CHECK(vkCreateFence(device_, &fenceInfo, nullptr, &frame.renderFence));
 
-        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &frames_[i].acquireSemaphore));
+        VK_CHECK(vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &frame.acquireSemaphore));
     }
 
     submitSemaphores_.resize(swapChainImages_.size());
@@ -1078,7 +1077,7 @@ void SrsVkRenderer::InitAllocator() {
 
 void SrsVkRenderer::InitDescriptors() {
     //create a descriptor pool that will hold 10 sets with 1 image each
-    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = { {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1} };
+    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}};
 
     globalDescriptorAllocator_.InitPool(device_, 10, sizes);
 
@@ -1087,21 +1086,17 @@ void SrsVkRenderer::InitDescriptors() {
         DescriptorLayoutBuilder builder;
         builder.AddBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         drawImageDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_COMPUTE_BIT);
-    }
-
-    {
+    } {
         DescriptorLayoutBuilder builder;
         builder.AddBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         sceneDataDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-    }
-
-    {
+    } {
         DescriptorLayoutBuilder builder;
         builder.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         singleImageDescriptorLayout_ = builder.Build(device_, VK_SHADER_STAGE_FRAGMENT_BIT);
     }
 
-    drawImageDescriptors_ = globalDescriptorAllocator_.allocate(device_, drawImageDescriptorLayout_);
+    drawImageDescriptors_ = globalDescriptorAllocator_.Allocate(device_, drawImageDescriptorLayout_);
 
     DescriptorWriter writer;
     writer.WriteImage(0, drawImage_.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -1114,9 +1109,9 @@ void SrsVkRenderer::InitDescriptors() {
         vkDestroyDescriptorSetLayout(device_, drawImageDescriptorLayout_, nullptr);
     });
 
-    for (auto & frame : frames_) {
+    for (auto& frame : frames_) {
         std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frameSizes = {
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4}
@@ -1155,27 +1150,27 @@ void SrsVkRenderer::InitBackgroundPipelines() {
 
     //layout code
     VkShaderModule gradientShader;
-    if (!load_shader_module("../../src/sirius/shaders/gradient_color.comp.spv", device_, &gradientShader)) {
+    if (!LoadShaderModule("../../src/sirius/shaders/gradient_color.comp.spv", device_, &gradientShader)) {
         fmt::print("Error when building the compute shader \n");
     }
 
     VkShaderModule skyShader;
-    if (!load_shader_module("../../src/sirius/shaders/sky.comp.spv", device_, &skyShader)) {
+    if (!LoadShaderModule("../../src/sirius/shaders/sky.comp.spv", device_, &skyShader)) {
         fmt::print("Error when building the compute shader \n");
     }
 
-    VkPipelineShaderStageCreateInfo stageinfo{};
-    stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stageinfo.pNext = nullptr;
-    stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stageinfo.module = gradientShader;
-    stageinfo.pName = "main";
+    VkPipelineShaderStageCreateInfo stageInfo{};
+    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageInfo.pNext = nullptr;
+    stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stageInfo.module = gradientShader;
+    stageInfo.pName = "main";
 
     VkComputePipelineCreateInfo computePipelineCreateInfo{};
     computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     computePipelineCreateInfo.pNext = nullptr;
     computePipelineCreateInfo.layout = gradientPipelineLayout_;
-    computePipelineCreateInfo.stage = stageinfo;
+    computePipelineCreateInfo.stage = stageInfo;
 
     ComputeEffect gradient{};
     gradient.layout = gradientPipelineLayout_;
@@ -1213,18 +1208,16 @@ void SrsVkRenderer::InitBackgroundPipelines() {
 
 void SrsVkRenderer::InitMeshPipeline() {
     VkShaderModule fragShader;
-    if (!load_shader_module("../../src/sirius/shaders/textured_image.frag.spv", device_, &fragShader)) {
+    if (!LoadShaderModule("../../src/sirius/shaders/textured_image.frag.spv", device_, &fragShader)) {
         fmt::print("Error when building the triangle fragment shader module\n");
-    }
-    else {
+    } else {
         fmt::print("Triangle fragment shader successfully loaded\n");
     }
 
     VkShaderModule triangleVertexShader;
-    if (!load_shader_module("../../src/sirius/shaders/colored_triangle_mesh.vert.spv", device_, &triangleVertexShader)) {
+    if (!LoadShaderModule("../../src/sirius/shaders/colored_triangle_mesh.vert.spv", device_, &triangleVertexShader)) {
         fmt::print("Error when building the triangle vertex shader module\n");
-    }
-    else {
+    } else {
         fmt::print("Triangle vertex shader successfully loaded\n");
     }
 
@@ -1278,19 +1271,19 @@ void SrsVkRenderer::InitMeshPipeline() {
 }
 
 void SrsVkRenderer::InitDefaultData() {
-    std::array<Vertex,4> rectVertices{};
+    std::array<Vertex, 4> rectVertices{};
 
-    rectVertices[0].position = {0.5,-0.5, 0};
-    rectVertices[1].position = {0.5,0.5, 0};
-    rectVertices[2].position = {-0.5,-0.5, 0};
-    rectVertices[3].position = {-0.5,0.5, 0};
+    rectVertices[0].position = {0.5, -0.5, 0};
+    rectVertices[1].position = {0.5, 0.5, 0};
+    rectVertices[2].position = {-0.5, -0.5, 0};
+    rectVertices[3].position = {-0.5, 0.5, 0};
 
-    rectVertices[0].color = {1,0, 0,1};
-    rectVertices[1].color = { 0,0,0 ,0.9};
-    rectVertices[2].color = { 0,0, 0,0.9};
-    rectVertices[3].color = { 0,0, 0,0.9};
+    rectVertices[0].color = {1, 0, 0, 1};
+    rectVertices[1].color = {0, 0, 0, 0.9};
+    rectVertices[2].color = {0, 0, 0, 0.9};
+    rectVertices[3].color = {0, 0, 0, 0.9};
 
-    std::array<uint32_t,6> rectIndices{};
+    std::array<uint32_t, 6> rectIndices{};
 
     rectIndices[0] = 0;
     rectIndices[1] = 1;
@@ -1300,33 +1293,33 @@ void SrsVkRenderer::InitDefaultData() {
     rectIndices[4] = 1;
     rectIndices[5] = 3;
 
-    rectangle = UploadMesh(rectIndices,rectVertices);
+    rectangle = UploadMesh(rectIndices, rectVertices);
 
     //delete the rectangle data on engine shutdown
-    mainDeletionQueue_.PushFunction([&](){
+    mainDeletionQueue_.PushFunction([&]() {
         DestroyBuffer(rectangle.indexBuffer);
         DestroyBuffer(rectangle.vertexBuffer);
     });
 
     //3 default textures, white, grey, black. 1 pixel each
     uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-    whiteImage_ = CreateImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    whiteImage_ = CreateImage((void*) &white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-    greyImage_ = CreateImage((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    greyImage_ = CreateImage((void*) &grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-    blackImage_ = CreateImage((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    blackImage_ = CreateImage((void*) &black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
     // checkerboard image
     const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-    std::array<uint32_t, 16 *16 > pixels{}; //for 16x16 checkerboard texture
+    std::array<uint32_t, 16 * 16> pixels{}; //for 16x16 checkerboard texture
     for (int x = 0; x < 16; x++) {
         for (int y = 0; y < 16; y++) {
-            pixels[y*16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+            pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
         }
     }
-   errorCheckerboardImage_ = CreateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    errorCheckerboardImage_ = CreateImage(pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
     VkSamplerCreateInfo samplerCreateInfo = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
@@ -1337,9 +1330,9 @@ void SrsVkRenderer::InitDefaultData() {
     samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
     vkCreateSampler(device_, &samplerCreateInfo, nullptr, &defaultSamplerLinear_);
 
-   mainDeletionQueue_.PushFunction([&]{
-        vkDestroySampler(device_,defaultSamplerNearest_,nullptr);
-        vkDestroySampler(device_,defaultSamplerLinear_,nullptr);
+    mainDeletionQueue_.PushFunction([&] {
+        vkDestroySampler(device_, defaultSamplerNearest_, nullptr);
+        vkDestroySampler(device_, defaultSamplerLinear_, nullptr);
 
         DestroyImage(whiteImage_);
         DestroyImage(greyImage_);
@@ -1352,7 +1345,7 @@ void SrsVkRenderer::InitDefaultData() {
 void SrsVkRenderer::InitImgui() {
     IMGUI_CHECKVERSION();
 
-    VkDescriptorPoolSize pool_sizes[] = {
+    VkDescriptorPoolSize poolSizes[] = {
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
@@ -1366,15 +1359,15 @@ void SrsVkRenderer::InitImgui() {
         {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
     };
 
-    VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = 1000;
-    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-    pool_info.pPoolSizes = pool_sizes;
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets = 1000;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(std::size(poolSizes));
+    poolInfo.pPoolSizes = poolSizes;
 
     VkDescriptorPool imguiPool;
-    VK_CHECK(vkCreateDescriptorPool(device_, &pool_info, nullptr, &imguiPool));
+    VK_CHECK(vkCreateDescriptorPool(device_, &poolInfo, nullptr, &imguiPool));
 
     ImGui::CreateContext();
 
@@ -1431,8 +1424,8 @@ void SrsVkRenderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& f
 
     VK_CHECK(vkEndCommandBuffer(cmd));
 
-    VkCommandBufferSubmitInfo cmdinfo = init::command_buffer_submit_info(cmd);
-    VkSubmitInfo2 submit = init::submit_info(&cmdinfo, nullptr, nullptr);
+    VkCommandBufferSubmitInfo cmdInfo = init::command_buffer_submit_info(cmd);
+    VkSubmitInfo2 submit = init::submit_info(&cmdInfo, nullptr, nullptr);
 
     // submit command buffer to the queue and execute it.
     //  _renderFence will now block until the graphic commands finish execution

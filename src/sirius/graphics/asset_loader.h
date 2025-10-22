@@ -26,6 +26,4 @@ struct MeshAsset {
     GpuMeshBuffers meshBuffers;
 };
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath);
-
-
+std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath);

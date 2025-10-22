@@ -14,12 +14,10 @@
 #include "imgui_impl_win32.h"
 #include "graphics/renderer.h"
 
+// ReSharper disable once CppInconsistentNaming
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace sirius {
-
-
-
 HWND SrsWindow::CreateDeviceWindow() {
     if (!winClass) {
         hInstance = GetModuleHandle(nullptr);
@@ -91,7 +89,7 @@ LRESULT SrsWindow::HandleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         default: {
         }
     }
-    return g_WindowProc(hWnd, msg, wParam, lParam);
+    return windowProc(hWnd, msg, wParam, lParam);
 }
 
 void SrsWindow::SetWindowTitle(const std::string& title) {

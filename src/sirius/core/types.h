@@ -27,7 +27,7 @@ struct AllocatedBuffer {
 };
 
 
-// uv coords interleaved for alignement
+// uv coords interleaved for alignment
 struct Vertex {
     glm::vec3 position;
     float uvX;

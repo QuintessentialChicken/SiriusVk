@@ -14,7 +14,8 @@ public:
         VkPipelineStageFlags dstStageMask;
         VkAccessFlags2 dstAccessMask;
     };
-    static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, TransitionFlags flags);
+
+    static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout, const TransitionFlags& flags);
 
     static void CopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcExtend, VkExtent2D dstExtend);
 };
