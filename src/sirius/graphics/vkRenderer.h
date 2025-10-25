@@ -5,7 +5,7 @@
 #pragma once
 
 
-#include "core/types.h"
+#include "types.h"
 #include <deque>
 #include <functional>
 #include <memory>
@@ -14,6 +14,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "descriptors.h"
+#include "materials.h"
 
 struct MeshAsset;
 
@@ -199,7 +200,7 @@ private:
     AllocatedImage drawImage_;
     VkExtent2D drawExtent_;
     AllocatedImage depthImage_;
-    DescriptorAllocator globalDescriptorAllocator_;
+    DescriptorAllocatorGrowable globalDescriptorAllocator_;
     VkDescriptorSet drawImageDescriptors_;
     VkDescriptorSetLayout drawImageDescriptorLayout_;
     GpuSceneData sceneData_;
@@ -237,6 +238,8 @@ private:
 
     VkPipelineLayout trianglePipelineLayout_;
     VkPipeline trianglePipeline_;
+
+    MaterialInstance defaultMaterialData_;
 
     DeletionQueue mainDeletionQueue_;
 };

@@ -12,6 +12,8 @@ add_library(graphics STATIC
         initializers.h
         asset_loader.cpp
         asset_loader.h
+        materials.cpp
+        materials.h
 )
 
 target_include_directories(graphics PUBLIC ${CMAKE_SOURCE_DIR}/sirius)

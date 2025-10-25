@@ -4,7 +4,7 @@
 
 #include "descriptors.h"
 
-#include "core/types.h"
+#include "types.h"
 #include "fmt/chrono.h"
 #include "simdjson.h"
 

@@ -958,7 +958,7 @@ VkPresentModeKHR SrsVkRenderer::ChooseSwapPresentMode(const std::vector<VkPresen
 }
 
 VkExtent2D SrsVkRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t requestedWidth, uint32_t requestedHeight) {
-    // If the currentExtent is set to the maximum value of uint32_t it means that the extend of the swapchain determines the surface size
+    // If the currentExtent is set to the maximum value of uint32_t it means that the extent of the swapchain determines the surface size
     if (capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)()) {
         return capabilities.currentExtent;
     }
@@ -1077,9 +1077,9 @@ void SrsVkRenderer::InitAllocator() {
 
 void SrsVkRenderer::InitDescriptors() {
     //create a descriptor pool that will hold 10 sets with 1 image each
-    std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}};
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}};
 
-    globalDescriptorAllocator_.InitPool(device_, 10, sizes);
+    globalDescriptorAllocator_.Init(device_, 10, sizes);
 
     //make the descriptor set layout for our compute draw
     {
@@ -1104,7 +1104,7 @@ void SrsVkRenderer::InitDescriptors() {
 
     //make sure both the descriptor allocator and the new layout get cleaned up properly
     mainDeletionQueue_.PushFunction([&]() {
-        globalDescriptorAllocator_.DestroyPool(device_);
+        globalDescriptorAllocator_.DestroyPools(device_);
 
         vkDestroyDescriptorSetLayout(device_, drawImageDescriptorLayout_, nullptr);
     });
@@ -1129,6 +1129,7 @@ void SrsVkRenderer::InitDescriptors() {
 void SrsVkRenderer::InitPipelines() {
     InitBackgroundPipelines();
     InitMeshPipeline();
+    // metalRoughMaterial_.BuildPipelines(device_, drawImage_.imageFormat, depthImage_.imageFormat, sceneDataDescriptorLayout_);
 }
 
 void SrsVkRenderer::InitBackgroundPipelines() {
@@ -1340,6 +1341,30 @@ void SrsVkRenderer::InitDefaultData() {
         DestroyImage(errorCheckerboardImage_);
     });
     testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
+
+    GltfMetallicRoughness::MaterialResources materialResources;
+    //default the material textures
+    materialResources.colorImage = whiteImage_;
+    materialResources.colorSampler = defaultSamplerLinear_;
+    materialResources.metalRoughImage = whiteImage_;
+    materialResources.metalRoughSampler = defaultSamplerLinear_;
+
+    //set the uniform buffer for the material data
+    AllocatedBuffer materialConstants = CreateBuffer(sizeof(GltfMetallicRoughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    //write the buffer
+    GltfMetallicRoughness::MaterialConstants* sceneUniformData = static_cast<GltfMetallicRoughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
+    sceneUniformData->colorFactors = glm::vec4{1,1,1,1};
+    sceneUniformData->metalRoughFactors = glm::vec4{1,0.5,0,0};
+
+    mainDeletionQueue_.PushFunction([=, this]() {
+        DestroyBuffer(materialConstants);
+    });
+
+    materialResources.dataBuffer = materialConstants.buffer;
+    materialResources.dataBufferOffset = 0;
+
+    // defaultMaterialData_ = metalRoughMaterial_.WriteMaterial(device_,MaterialPass::kMainColor, materialResources, globalDescriptorAllocator_);
 }
 
 void SrsVkRenderer::InitImgui() {

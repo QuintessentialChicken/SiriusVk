@@ -56,6 +56,24 @@ struct GpuSceneData {
     glm::vec4 sunlightColor;
 };
 
+enum class MaterialPass : uint8_t {
+    kMainColor,
+    kTransparent,
+    kOther
+};
+
+struct MaterialPipeline {
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+};
+
+struct MaterialInstance {
+    MaterialPipeline* pipeline;
+    VkDescriptorSet materialSet;
+    MaterialPass passType;
+};
+
+
 #define VK_CHECK(x)                                                     \
 do {                                                                \
 VkResult err = x;                                               \
