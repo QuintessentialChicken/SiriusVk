@@ -85,6 +85,12 @@ void SrsVkRenderer::Init() {
     InitPipelines();
     InitImgui();
     InitDefaultData();
+
+    defaultCamera_.velocity_ = glm::vec3(0.0f);
+    defaultCamera_.position_ = glm::vec3(0.0f, 0.0f, -2.0f);
+    defaultCamera_.pitch_ = 0.0f;
+    defaultCamera_.yaw_ = 0.0f;
+
     isInitialized_ = true;
     std::cout << "Renderer initialized successfully \n" << "------------ Running ------------" << std::endl;
 }
@@ -336,14 +342,20 @@ void SrsVkRenderer::UpdateScene() {
     drawExtent_.width = drawImage_.imageExtent.width;
     drawExtent_.height = drawImage_.imageExtent.height;
 
+    defaultCamera_.Update();
+
     mainDrawContext_.opaqueRenderObjects.clear();
 
-    loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
+    // loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
+    for (int x = -3; x < 3; x++) {
+        glm::mat4 scale = glm::scale(glm::vec3{0.2});
+        glm::mat4 translation =  glm::translate(glm::vec3{x, -1, 0});
 
-    sceneData_.viewMatrix = glm::translate(glm::vec3{0, 0, -2});
+        loadedNodes_["Cube"]->Draw(translation * scale, mainDrawContext_);
+    }
 
+    sceneData_.viewMatrix = defaultCamera_.GetViewMatrix();
     sceneData_.projectionMatrix = glm::perspectiveRH_ZO(glm::radians(70.0f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
-
     sceneData_.projectionMatrix[1][1] *= -1;
     sceneData_.viewProjectionMatrix = sceneData_.projectionMatrix * sceneData_.viewMatrix;
 
@@ -944,6 +956,10 @@ void SrsVkRenderer::ResizeSwapChain() {
 
 bool SrsVkRenderer::ResizeRequested() {
     return resizeRequested_;
+}
+
+void SrsVkRenderer::UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput) {
+    defaultCamera_.ProcessWindowEvent(keyInput, mouseInput);
 }
 
 void SrsVkRenderer::DestroySwapChain() {

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "graphics/renderer.h"
+#include "input/input_manager.h"
 #include "third-party/imgui/imgui_impl_win32.h"
 #include "window/window.h"
 #include "window/wndProc.h"
@@ -31,6 +32,7 @@ Fsm::FsmReturn App::Init() {
     }
     sirius::SrsWindow::SetWindowTitle("Sirius Vulkan");
     sirius::SrsRenderer::Init();
+    sirius::InputManager::Init();
     SetState(kRunGame);
     return kContinue;
 }

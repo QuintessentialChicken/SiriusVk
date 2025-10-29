@@ -15,6 +15,7 @@
 #include "descriptors.h"
 
 #include "asset_loader.h"
+#include "camera.h"
 #include "materials.h"
 
 namespace sirius {
@@ -101,6 +102,8 @@ public:
     void ResizeSwapChain();
 
     bool ResizeRequested();
+
+    void UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput);
 
     void Shutdown();
 
@@ -266,6 +269,8 @@ private:
 
     DrawContext mainDrawContext_;
     std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes_;
+
+    Camera defaultCamera_{};
 
     DeletionQueue mainDeletionQueue_;
 };

@@ -85,6 +85,7 @@ LRESULT SrsWindow::HandleMessages(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         case WM_SIZE: {
             windowWidth = LOWORD(lParam);
             windowHeight = HIWORD(lParam);
+            break;
         }
         default: {
         }

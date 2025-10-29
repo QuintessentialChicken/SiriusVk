@@ -4,6 +4,7 @@ find_package(Vulkan REQUIRED)
 target_link_libraries(engine INTERFACE
         core
         graphics
+        input
         window
         third-party
         Vulkan::Vulkan
@@ -11,6 +12,7 @@ target_link_libraries(engine INTERFACE
 
 add_subdirectory(core)
 add_subdirectory(graphics)
+add_subdirectory(input)
 add_subdirectory(window)
 add_subdirectory(shaders)
 add_subdirectory(third-party)

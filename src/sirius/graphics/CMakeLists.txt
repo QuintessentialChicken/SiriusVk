@@ -14,10 +14,12 @@ add_library(graphics STATIC
         asset_loader.h
         materials.cpp
         materials.h
+        Camera.cpp
+        Camera.h
 )
 
 target_include_directories(graphics PUBLIC ${CMAKE_SOURCE_DIR}/sirius)
-target_include_directories(graphics PRIVATE "$ENV{VULKAN_SDK}/Include")
-target_include_directories(graphics PRIVATE "$ENV{VULKAN_SDK}/Include/glm")
+target_include_directories(graphics PUBLIC "$ENV{VULKAN_SDK}/Include")
+target_include_directories(graphics PUBLIC "$ENV{VULKAN_SDK}/Include/glm")
 target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius/third-party/imgui)
 target_link_libraries(graphics PUBLIC Vulkan::Vulkan fmt::fmt vma fastgltf::fastgltf)
