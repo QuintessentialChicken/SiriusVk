@@ -2,6 +2,7 @@
 // Created by Leon on 18/09/2025.
 //
 
+#define NOMINMAX
 #include "vkRenderer.h"
 
 #include <ostream>
@@ -34,7 +35,9 @@
 
 #include <fmt/core.h>
 
-#include "asset_loader.h"
+#include "materials.h"
+#include "fastgltf/types.hpp"
+
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -48,6 +51,24 @@ struct SimplePushConstantData {
     glm::vec2 offset;
     alignas(16) glm::vec3 color;
 };
+
+void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& context) {
+    glm::mat4 nodeMatrix{topMatrix * worldTransform_};
+
+    for (auto& [startIndex, count, material] : mesh_->surfaces) {
+        RenderObject object{};
+        object.indexCount = count;
+        object.firstIndex = startIndex;
+        object.indexBuffer = mesh_->meshBuffers.indexBuffer.buffer;
+        object.material = &material->data;
+        object.transform = nodeMatrix;
+        object.vertexBufferAddress = mesh_->meshBuffers.vertexBufferAddress;
+
+        context.opaqueSurfaces.push_back(object);
+    }
+
+    Node::Draw(topMatrix, context);
+}
 
 void SrsVkRenderer::Init() {
     assert(hwndMain != nullptr && "Can't init renderer without window");
@@ -69,6 +90,8 @@ void SrsVkRenderer::Init() {
 }
 
 void SrsVkRenderer::Draw() {
+    UpdateScene();
+
     VK_CHECK(vkWaitForFences(device_, 1, &GetCurrentFrame().renderFence, true, 1000000000));
 
     GetCurrentFrame().deletionQueue.Flush();
@@ -283,14 +306,6 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    VkDescriptorSet imageSet = GetCurrentFrame().frameDescriptors.Allocate(device_, singleImageDescriptorLayout_); {
-        DescriptorWriter writer;
-        writer.WriteImage(0, errorCheckerboardImage_.imageView, defaultSamplerNearest_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writer.UpdateSet(device_, imageSet);
-    }
-
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipelineLayout_, 0, 1, &imageSet, 0, nullptr);
-
     AllocatedBuffer sceneDataBuffer{CreateBuffer(sizeof(GpuSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
     GetCurrentFrame().deletionQueue.PushFunction([this, sceneDataBuffer] { DestroyBuffer(sceneDataBuffer); });
@@ -304,30 +319,39 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     writer.WriteBuffer(0, sceneDataBuffer.buffer, sizeof(GpuSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     writer.UpdateSet(device_, globalDescriptor);
 
+    for (const auto& [indexCount, firstIndex, indexBuffer, material, transform, vertexBufferAddress] : mainDrawContext_.opaqueSurfaces) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->pipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->layout, 1, 1, &material->materialSet, 0, nullptr);
 
-    GpuDrawPushConstants pushConstants;
+        vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    const glm::mat4 view = glm::translate(glm::vec3{0, 0, -2});
-    glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(70.f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
-    projection[1][1] *= -1;
-    pushConstants.worldMatrix = projection * view;
-    pushConstants.vertexBuffer = testMeshes_[2]->meshBuffers.vertexBufferAddress;
+        GpuDrawPushConstants pushConstants;
+        pushConstants.vertexBuffer = vertexBufferAddress;
+        pushConstants.worldMatrix = transform;
+        vkCmdPushConstants(cmd, material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &pushConstants);
 
-    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &pushConstants);
-    vkCmdBindIndexBuffer(cmd, testMeshes_[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    // Draws model
-    vkCmdDrawIndexed(cmd, testMeshes_[2]->surfaces[0].count, 1, testMeshes_[2]->surfaces[0].startIndex, 0, 0);
-
-
-    pushConstants.vertexBuffer = rectangle.vertexBufferAddress;
-
-    vkCmdPushConstants(cmd, meshPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GpuDrawPushConstants), &pushConstants);
-    vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+        vkCmdDrawIndexed(cmd, indexCount, 1, firstIndex, 0, 0);
+    }
 
     vkCmdEndRendering(cmd);
+}
+
+void SrsVkRenderer::UpdateScene() {
+    mainDrawContext_.opaqueSurfaces.clear();
+
+    loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
+
+    sceneData_.viewMatrix = glm::translate(glm::vec3{0, 0, -5});
+
+    sceneData_.projectionMatrix = glm::perspective(glm::radians(70.0f), static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 10000.0f, 0.1f);
+
+    sceneData_.projectionMatrix[1][1] *= -1;
+    sceneData_.viewProjectionMatrix = sceneData_.projectionMatrix * sceneData_.viewMatrix;
+
+    sceneData_.ambientColor = glm::vec4(0.1f);
+    sceneData_.sunlightColor = glm::vec4(1.0f);
+    sceneData_.sunlightDirection = glm::vec4(0, 1, 0.5f, 1.0f);
 }
 
 AllocatedBuffer SrsVkRenderer::CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) {
@@ -1076,8 +1100,10 @@ void SrsVkRenderer::InitAllocator() {
 }
 
 void SrsVkRenderer::InitDescriptors() {
-    //create a descriptor pool that will hold 10 sets with 1 image each
-    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}};
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
+    };
 
     globalDescriptorAllocator_.Init(device_, 10, sizes);
 
@@ -1107,6 +1133,8 @@ void SrsVkRenderer::InitDescriptors() {
         globalDescriptorAllocator_.DestroyPools(device_);
 
         vkDestroyDescriptorSetLayout(device_, drawImageDescriptorLayout_, nullptr);
+        vkDestroyDescriptorSetLayout(device_, sceneDataDescriptorLayout_, nullptr);
+        vkDestroyDescriptorSetLayout(device_, singleImageDescriptorLayout_, nullptr);
     });
 
     for (auto& frame : frames_) {
@@ -1129,7 +1157,7 @@ void SrsVkRenderer::InitDescriptors() {
 void SrsVkRenderer::InitPipelines() {
     InitBackgroundPipelines();
     InitMeshPipeline();
-    // metalRoughMaterial_.BuildPipelines(device_, drawImage_.imageFormat, depthImage_.imageFormat, sceneDataDescriptorLayout_);
+    metalRoughMaterial_.BuildPipelines(device_, drawImage_.imageFormat, depthImage_.imageFormat, sceneDataDescriptorLayout_);
 }
 
 void SrsVkRenderer::InitBackgroundPipelines() {
@@ -1294,12 +1322,12 @@ void SrsVkRenderer::InitDefaultData() {
     rectIndices[4] = 1;
     rectIndices[5] = 3;
 
-    rectangle = UploadMesh(rectIndices, rectVertices);
+    rectangle_ = UploadMesh(rectIndices, rectVertices);
 
     //delete the rectangle data on engine shutdown
     mainDeletionQueue_.PushFunction([&]() {
-        DestroyBuffer(rectangle.indexBuffer);
-        DestroyBuffer(rectangle.vertexBuffer);
+        DestroyBuffer(rectangle_.indexBuffer);
+        DestroyBuffer(rectangle_.vertexBuffer);
     });
 
     //3 default textures, white, grey, black. 1 pixel each
@@ -1342,7 +1370,7 @@ void SrsVkRenderer::InitDefaultData() {
     });
     testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 
-    GltfMetallicRoughness::MaterialResources materialResources;
+    GltfMetallicRoughness::MaterialResources materialResources{};
     //default the material textures
     materialResources.colorImage = whiteImage_;
     materialResources.colorSampler = defaultSamplerLinear_;
@@ -1353,9 +1381,9 @@ void SrsVkRenderer::InitDefaultData() {
     AllocatedBuffer materialConstants = CreateBuffer(sizeof(GltfMetallicRoughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     //write the buffer
-    GltfMetallicRoughness::MaterialConstants* sceneUniformData = static_cast<GltfMetallicRoughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
-    sceneUniformData->colorFactors = glm::vec4{1,1,1,1};
-    sceneUniformData->metalRoughFactors = glm::vec4{1,0.5,0,0};
+    auto* sceneUniformData = static_cast<GltfMetallicRoughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
+    sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
+    sceneUniformData->metalRoughFactors = glm::vec4{1, 0.5, 0, 0};
 
     mainDeletionQueue_.PushFunction([=, this]() {
         DestroyBuffer(materialConstants);
@@ -1364,7 +1392,20 @@ void SrsVkRenderer::InitDefaultData() {
     materialResources.dataBuffer = materialConstants.buffer;
     materialResources.dataBufferOffset = 0;
 
-    // defaultMaterialData_ = metalRoughMaterial_.WriteMaterial(device_,MaterialPass::kMainColor, materialResources, globalDescriptorAllocator_);
+    defaultMaterialData_ = metalRoughMaterial_.WriteMaterial(device_, MaterialPass::kMainColor, materialResources, globalDescriptorAllocator_);
+
+    for (auto& mesh : testMeshes_) {
+        std::shared_ptr newNode{std::make_shared<MeshNode>()};
+        newNode->mesh_ = mesh;
+        newNode->localTransform_ = glm::mat4{1.0f};
+        newNode->worldTransform_ = glm::mat4{1.0f};
+
+        for (auto& surface : newNode->mesh_->surfaces) {
+            surface.material = std::make_shared<GltfMaterial>(defaultMaterialData_);
+        }
+
+        loadedNodes_[mesh->name] = std::move(newNode);
+    }
 }
 
 void SrsVkRenderer::InitImgui() {

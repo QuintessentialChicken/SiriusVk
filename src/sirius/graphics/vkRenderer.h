@@ -12,11 +12,10 @@
 #include <optional>
 #include <vec4.hpp>
 #include <vulkan/vulkan_core.h>
-
 #include "descriptors.h"
-#include "materials.h"
 
-struct MeshAsset;
+#include "asset_loader.h"
+#include "materials.h"
 
 namespace sirius {
 class DeletionQueue {
@@ -65,8 +64,29 @@ struct ComputeEffect {
     ComputePushConstants data;
 };
 
-constexpr unsigned int kFrameOverlap = 3;
+struct RenderObject {
+    uint32_t indexCount;
+    uint32_t firstIndex;
+    VkBuffer indexBuffer;
 
+    MaterialInstance* material;
+
+    glm::mat4 transform;
+    VkDeviceAddress vertexBufferAddress;
+};
+
+struct DrawContext {
+    std::vector<RenderObject> opaqueSurfaces;
+};
+
+class MeshNode final : public Node {
+public:
+    std::shared_ptr<MeshAsset> mesh_;
+
+    void Draw(const glm::mat4& topMatrix, DrawContext& context) override;
+};
+
+constexpr unsigned int kFrameOverlap = 3;
 
 class SrsVkRenderer {
 public:
@@ -164,6 +184,8 @@ private:
 
     void DrawGeometry(VkCommandBuffer cmd);
 
+    void UpdateScene();
+
     AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
     void DestroyBuffer(const AllocatedBuffer& buffer) const;
@@ -192,37 +214,37 @@ private:
     std::vector<VkSemaphore> submitSemaphores_;
 
     // immediate submit structures
-    VkFence immFence_;
-    VkCommandBuffer immCommandBuffer_;
-    VkCommandPool immCommandPool_;
+    VkFence immFence_{};
+    VkCommandBuffer immCommandBuffer_{};
+    VkCommandPool immCommandPool_{};
 
     VmaAllocator allocator_ = nullptr;
-    AllocatedImage drawImage_;
-    VkExtent2D drawExtent_;
-    AllocatedImage depthImage_;
-    DescriptorAllocatorGrowable globalDescriptorAllocator_;
-    VkDescriptorSet drawImageDescriptors_;
-    VkDescriptorSetLayout drawImageDescriptorLayout_;
-    GpuSceneData sceneData_;
-    VkDescriptorSetLayout sceneDataDescriptorLayout_;
+    AllocatedImage drawImage_{};
+    VkExtent2D drawExtent_{};
+    AllocatedImage depthImage_{};
+    DescriptorAllocatorGrowable globalDescriptorAllocator_{};
+    VkDescriptorSet drawImageDescriptors_{};
+    VkDescriptorSetLayout drawImageDescriptorLayout_{};
+    GpuSceneData sceneData_{};
+    VkDescriptorSetLayout sceneDataDescriptorLayout_{};
 
-    VkPipeline gradientPipeline_;
-    VkPipelineLayout gradientPipelineLayout_;
-    VkPipeline meshPipeline_;
-    VkPipelineLayout meshPipelineLayout_;
+    VkPipeline gradientPipeline_{};
+    VkPipelineLayout gradientPipelineLayout_{};
+    VkPipeline meshPipeline_{};
+    VkPipelineLayout meshPipelineLayout_{};
 
-    GpuMeshBuffers rectangle;
-    std::vector<std::shared_ptr<MeshAsset> > testMeshes_;
+    GpuMeshBuffers rectangle_{};
+    std::vector<std::shared_ptr<MeshAsset> > testMeshes_{};
 
-    AllocatedImage whiteImage_;
-    AllocatedImage blackImage_;
-    AllocatedImage greyImage_;
-    AllocatedImage errorCheckerboardImage_;
+    AllocatedImage whiteImage_{};
+    AllocatedImage blackImage_{};
+    AllocatedImage greyImage_{};
+    AllocatedImage errorCheckerboardImage_{};
 
-    VkDescriptorSetLayout singleImageDescriptorLayout_;
+    VkDescriptorSetLayout singleImageDescriptorLayout_{};
 
-    VkSampler defaultSamplerLinear_;
-    VkSampler defaultSamplerNearest_;
+    VkSampler defaultSamplerLinear_{};
+    VkSampler defaultSamplerNearest_{};
 
     bool resizeRequested_ = false;
 
@@ -232,14 +254,18 @@ private:
     int frameNumber_{0};
     FrameData frames_[kFrameOverlap]{};
 
-    std::vector<ComputeEffect> computeEffects_;
+    std::vector<ComputeEffect> computeEffects_{};
     int currentEffect_ = 0;
     float renderScale_ = 1.f;
 
-    VkPipelineLayout trianglePipelineLayout_;
-    VkPipeline trianglePipeline_;
+    VkPipelineLayout trianglePipelineLayout_{};
+    VkPipeline trianglePipeline_{};
 
-    MaterialInstance defaultMaterialData_;
+    MaterialInstance defaultMaterialData_{};
+    GltfMetallicRoughness metalRoughMaterial_{};
+
+    DrawContext mainDrawContext_;
+    std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes_;
 
     DeletionQueue mainDeletionQueue_;
 };

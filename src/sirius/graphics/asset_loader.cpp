@@ -12,6 +12,8 @@
 #include "fastgltf/glm_element_traits.hpp"
 #include "fmt/compile.h"
 
+namespace sirius {
+
 std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath) {
     std::cout << "\n" << "Loading GLTF: " << filePath << "\n" << std::endl;
 
@@ -119,4 +121,5 @@ std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::
     }
 
     return meshes;
+}
 }

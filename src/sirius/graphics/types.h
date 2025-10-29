@@ -8,9 +8,14 @@
 #include <vec3.hpp>
 #include <vec4.hpp>
 #include <mat4x4.hpp>
+#include <memory>
+#include <vector>
 
 #include <vulkan/vk_enum_string_helper.h>
 #include "vk_mem_alloc.h"
+
+namespace sirius {
+struct DrawContext;
 
 struct AllocatedImage {
     VkImage image;
@@ -73,6 +78,37 @@ struct MaterialInstance {
     MaterialPass passType;
 };
 
+class IRenderable {
+public:
+    virtual ~IRenderable() = default;
+
+private:
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& context) = 0;
+};
+
+class Node : public IRenderable {
+public:
+
+    std::weak_ptr<Node> parent_;
+    std::vector<std::shared_ptr<Node>> children_;
+
+    glm::mat4 localTransform_{};
+    glm::mat4 worldTransform_{};
+
+    void RefreshTransform(const glm::mat4& parentMatrix) {
+        worldTransform_ = parentMatrix * localTransform_;
+        for (const auto& child : children_) {
+            child->RefreshTransform(worldTransform_);
+        }
+    }
+
+    void Draw(const glm::mat4& topMatrix, DrawContext& context) override {
+        for (const auto& child : children_) {
+            child->Draw(topMatrix, context);
+        }
+    }
+};
+
 
 #define VK_CHECK(x)                                                     \
 do {                                                                \
@@ -82,3 +118,4 @@ fmt::print("Detected Vulkan error: {}", string_VkResult(err)); \
 abort();                                                    \
 }                                                               \
 } while (0)
+}

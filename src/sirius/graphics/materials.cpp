@@ -6,9 +6,10 @@
 
 #include "initializers.h"
 #include "pipelines.h"
-#include "fmt/xchar.h"
+#include <fmt/base.h>
 
 namespace sirius {
+
 void GltfMetallicRoughness::BuildPipelines(VkDevice device, VkFormat drawImageFormat, VkFormat depthImageFormat, VkDescriptorSetLayout sceneDataDescriptorLayout) {
     VkShaderModule fragShader;
     if (!LoadShaderModule("../../src/sirius/shaders/mesh.frag.spv", device, &fragShader)) {

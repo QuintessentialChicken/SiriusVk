@@ -13,11 +13,15 @@
 
 namespace sirius {
 class SrsVkRenderer;
-}
+
+struct GltfMaterial {
+    MaterialInstance data;
+};
 
 struct GeoSurface {
     uint32_t startIndex;
     uint32_t count;
+	std::shared_ptr<GltfMaterial> material;
 };
 
 struct MeshAsset {
@@ -27,3 +31,5 @@ struct MeshAsset {
 };
 
 std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath);
+
+}

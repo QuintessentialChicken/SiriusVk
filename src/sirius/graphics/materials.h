@@ -5,9 +5,9 @@
 
 #include "descriptors.h"
 #include "types.h"
-#include "vkRenderer.h"
 
 namespace sirius {
+
 class GltfMetallicRoughness {
 public:
     struct MaterialConstants {
@@ -26,10 +26,10 @@ public:
         uint32_t dataBufferOffset;
     };
 
-    MaterialPipeline opaquePipeline_;
-    MaterialPipeline transparentPipeline_;
+    MaterialPipeline opaquePipeline_{};
+    MaterialPipeline transparentPipeline_{};
 
-    VkDescriptorSetLayout materialLayout_;
+    VkDescriptorSetLayout materialLayout_{};
 
     DescriptorWriter writer_;
 
