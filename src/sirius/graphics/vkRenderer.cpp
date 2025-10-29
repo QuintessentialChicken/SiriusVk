@@ -64,7 +64,7 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& context) {
         object.transform = nodeMatrix;
         object.vertexBufferAddress = mesh_->meshBuffers.vertexBufferAddress;
 
-        context.opaqueSurfaces.push_back(object);
+        context.opaqueRenderObjects.push_back(object);
     }
 
     Node::Draw(topMatrix, context);
@@ -118,8 +118,6 @@ void SrsVkRenderer::Draw() {
     beginInfo.pNext = nullptr;
 
 
-    drawExtent_.width = drawImage_.imageExtent.width;
-    drawExtent_.height = drawImage_.imageExtent.height;
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
@@ -296,20 +294,17 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     viewport.height = static_cast<float>(drawExtent_.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-
     vkCmdSetViewport(cmd, 0, 1, &viewport);
 
     VkRect2D scissor = {};
     scissor.offset = {0, 0};
     scissor.extent.width = drawExtent_.width;
     scissor.extent.height = drawExtent_.height;
-
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     AllocatedBuffer sceneDataBuffer{CreateBuffer(sizeof(GpuSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
     GetCurrentFrame().deletionQueue.PushFunction([this, sceneDataBuffer] { DestroyBuffer(sceneDataBuffer); });
-
     auto* sceneUniformData{static_cast<GpuSceneData*>(sceneDataBuffer.allocation->GetMappedData())};
     *sceneUniformData = sceneData_;
 
@@ -319,7 +314,7 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     writer.WriteBuffer(0, sceneDataBuffer.buffer, sizeof(GpuSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     writer.UpdateSet(device_, globalDescriptor);
 
-    for (const auto& [indexCount, firstIndex, indexBuffer, material, transform, vertexBufferAddress] : mainDrawContext_.opaqueSurfaces) {
+    for (const auto& [indexCount, firstIndex, indexBuffer, material, transform, vertexBufferAddress] : mainDrawContext_.opaqueRenderObjects) {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->pipeline);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline->layout, 1, 1, &material->materialSet, 0, nullptr);
@@ -338,13 +333,16 @@ void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
 }
 
 void SrsVkRenderer::UpdateScene() {
-    mainDrawContext_.opaqueSurfaces.clear();
+    drawExtent_.width = drawImage_.imageExtent.width;
+    drawExtent_.height = drawImage_.imageExtent.height;
+
+    mainDrawContext_.opaqueRenderObjects.clear();
 
     loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
 
-    sceneData_.viewMatrix = glm::translate(glm::vec3{0, 0, -5});
+    sceneData_.viewMatrix = glm::translate(glm::vec3{0, 0, -2});
 
-    sceneData_.projectionMatrix = glm::perspective(glm::radians(70.0f), static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 10000.0f, 0.1f);
+    sceneData_.projectionMatrix = glm::perspectiveRH_ZO(glm::radians(70.0f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
 
     sceneData_.projectionMatrix[1][1] *= -1;
     sceneData_.viewProjectionMatrix = sceneData_.projectionMatrix * sceneData_.viewMatrix;
@@ -1102,7 +1100,8 @@ void SrsVkRenderer::InitAllocator() {
 void SrsVkRenderer::InitDescriptors() {
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
     };
 
     globalDescriptorAllocator_.Init(device_, 10, sizes);

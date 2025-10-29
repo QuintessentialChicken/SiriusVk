@@ -76,7 +76,7 @@ struct RenderObject {
 };
 
 struct DrawContext {
-    std::vector<RenderObject> opaqueSurfaces;
+    std::vector<RenderObject> opaqueRenderObjects;
 };
 
 class MeshNode final : public Node {

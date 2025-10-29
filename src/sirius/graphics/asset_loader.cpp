@@ -109,7 +109,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::
         }
 
         // display the vertex normals
-        constexpr bool overrideColors = true;
+        constexpr bool overrideColors = false;
         if (overrideColors) {
             for (Vertex& vtx : vertices) {
                 vtx.color = glm::vec4(vtx.normal, 1.f);
