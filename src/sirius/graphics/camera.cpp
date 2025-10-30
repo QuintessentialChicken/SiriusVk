@@ -15,8 +15,7 @@ void Camera::ProcessWindowEvent(std::pair<float, float> keyInput, std::pair<floa
 
 void Camera::Update() {
     // glm::mat4 cameraRotation = GetRotationMatrix();
-    position_ += glm::vec3(glm::vec4(velocity_ * -0.005f, 0.0f));
-    std::cout << position_.x << ", " << position_.y << ", " << position_.z << std::endl;
+    position_ += glm::vec3(glm::vec4(velocity_ * -0.0005f, 0.0f));
 }
 
 glm::mat4 Camera::GetViewMatrix() {

@@ -116,17 +116,13 @@ void SrsVkRenderer::Draw() {
     VkCommandBuffer cmd = GetCurrentFrame().mainCommandBuffer;
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
-
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr;
     beginInfo.pNext = nullptr;
 
-
-
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
-
 
     // transition our main draw image into general layout so we can write into it.
     // we will overwrite it all so we don't care about what the older layout was
@@ -138,7 +134,6 @@ void SrsVkRenderer::Draw() {
     };
 
     Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, beforeComputeFlags);
-
 
     DrawBackground(cmd);
 
@@ -155,7 +150,6 @@ void SrsVkRenderer::Draw() {
         .dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
         .dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     };
-
 
     Utils::TransitionImage(cmd, drawImage_.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, beforeGeoDrawFlags);
     Utils::TransitionImage(cmd, depthImage_.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthBeforeGeoDrawFlags);
@@ -286,7 +280,7 @@ void SrsVkRenderer::DrawBackground(VkCommandBuffer cmd) {
 
 void SrsVkRenderer::DrawGeometry(VkCommandBuffer cmd) {
     VkRenderingAttachmentInfo colorAttachment = init::attachment_info(drawImage_.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    VkRenderingAttachmentInfo depthAttachment = init::attachment_info(depthImage_.imageView, nullptr, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo depthAttachment = init::depth_attachment_info(depthImage_.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     const VkRenderingInfo renderingInfo = init::rendering_info(drawExtent_, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
@@ -346,7 +340,7 @@ void SrsVkRenderer::UpdateScene() {
 
     mainDrawContext_.opaqueRenderObjects.clear();
 
-    // loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
+    loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
     for (int x = -3; x < 3; x++) {
         glm::mat4 scale = glm::scale(glm::vec3{0.2});
         glm::mat4 translation =  glm::translate(glm::vec3{x, -1, 0});
