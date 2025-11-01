@@ -4,6 +4,7 @@
 
 #pragma once
 
+#define NOMINMAX
 
 #include "types.h"
 #include <deque>
@@ -102,8 +103,6 @@ public:
     void ResizeSwapChain();
 
     bool ResizeRequested();
-
-    void UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput);
 
     void Shutdown();
 

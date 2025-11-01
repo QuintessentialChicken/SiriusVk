@@ -17,9 +17,6 @@ public:
     static void ResizeViewport();
 
     static bool ResizeRequested();
-
-    static void UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput);
-
 private:
     static SrsVkRenderer vkRenderer_;
 };

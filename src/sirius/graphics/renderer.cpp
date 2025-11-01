@@ -28,7 +28,4 @@ bool SrsRenderer::ResizeRequested() {
     return vkRenderer_.ResizeRequested();
 }
 
-void SrsRenderer::UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput) {
-    vkRenderer_.UpdateCamera(keyInput, mouseInput);
-}
 }

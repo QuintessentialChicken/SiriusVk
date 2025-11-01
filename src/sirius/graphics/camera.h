@@ -6,11 +6,17 @@
 
 #include <vec3.hpp>
 #include <mat4x4.hpp>
-#include <utility>
+
+#include "input/input_manager.h"
+namespace sirius {
+template<class... Ts> struct Overload : Ts...{using Ts::operator()...; };
 
 class Camera {
+
 public:
-    void ProcessWindowEvent(std::pair<float, float> keyInput, std::pair<float, float> mouseInput);
+    void Init();
+
+    void ProcessWindowEvent(sirius::InputEvent event);
 
     void Update();
 
@@ -23,3 +29,4 @@ public:
     float pitch_{0.0f};
     float yaw_{0.0f};
 };
+}

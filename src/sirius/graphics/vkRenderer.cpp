@@ -2,7 +2,6 @@
 // Created by Leon on 18/09/2025.
 //
 
-#define NOMINMAX
 #include "vkRenderer.h"
 
 #include <ostream>
@@ -85,9 +84,10 @@ void SrsVkRenderer::Init() {
     InitPipelines();
     InitImgui();
     InitDefaultData();
+    defaultCamera_.Init();
 
     defaultCamera_.velocity_ = glm::vec3(0.0f);
-    defaultCamera_.position_ = glm::vec3(0.0f, 0.0f, -2.0f);
+    defaultCamera_.position_ = glm::vec3(0.0f, 0.0f, 0.0f);
     defaultCamera_.pitch_ = 0.0f;
     defaultCamera_.yaw_ = 0.0f;
 
@@ -340,12 +340,18 @@ void SrsVkRenderer::UpdateScene() {
 
     mainDrawContext_.opaqueRenderObjects.clear();
 
-    loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
-    for (int x = -3; x < 3; x++) {
-        glm::mat4 scale = glm::scale(glm::vec3{0.2});
-        glm::mat4 translation =  glm::translate(glm::vec3{x, -1, 0});
+    // loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
+    for (int x = -3; x < 4; x++) {
+        for (int y = -3; y < 4; y++) {
+            for (int z = -3; z < 4; z++) {
+                if (x == 0 && y == 0 && z == 0) {continue;}
+                glm::mat4 scale = glm::scale(glm::vec3{0.2});
+                glm::mat4 translation = glm::translate(glm::vec3{x * 3, y * 3, z * 3});
 
-        loadedNodes_["Cube"]->Draw(translation * scale, mainDrawContext_);
+                loadedNodes_["Cube"]->Draw(translation * scale, mainDrawContext_);
+            }
+        }
+
     }
 
     sceneData_.viewMatrix = defaultCamera_.GetViewMatrix();
@@ -512,6 +518,8 @@ void SrsVkRenderer::SpawnImguiWindow() {
     ImGui::NewFrame();
 
     if (ImGui::Begin("background")) {
+        float framerate = ImGui::GetIO().Framerate;
+        ImGui::Text("Framerate: %f", framerate);
         ImGui::SliderFloat("Render Scale", &renderScale_, 0.3f, 1.f);
 
         ComputeEffect& selected = computeEffects_[currentEffect_];
@@ -524,9 +532,8 @@ void SrsVkRenderer::SpawnImguiWindow() {
         ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
         ImGui::InputFloat4("data3", reinterpret_cast<float*>(&selected.data.data3));
         ImGui::InputFloat4("data4", reinterpret_cast<float*>(&selected.data.data4));
-
-        ImGui::End();
     }
+    ImGui::End();
 
     ImGui::Render();
 }
@@ -950,10 +957,6 @@ void SrsVkRenderer::ResizeSwapChain() {
 
 bool SrsVkRenderer::ResizeRequested() {
     return resizeRequested_;
-}
-
-void SrsVkRenderer::UpdateCamera(std::pair<float, float> keyInput, std::pair<float, float> mouseInput) {
-    defaultCamera_.ProcessWindowEvent(keyInput, mouseInput);
 }
 
 void SrsVkRenderer::DestroySwapChain() {

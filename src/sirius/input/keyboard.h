@@ -4,36 +4,28 @@
 
 class Keyboard {
 public:
-    [[nodiscard]] static bool IsKeyPressed(unsigned char keycode) noexcept;
+    [[nodiscard]] bool IsKeyPressed(unsigned char keycode) noexcept;
 
     // char event stuff
-    static char ReadChar() noexcept;
+    char ReadChar() noexcept;
 
-    [[nodiscard]] static bool CharIsEmpty() noexcept;
+    [[nodiscard]] bool CharIsEmpty() noexcept;
 
-    static void ClearChar() noexcept;
+    void ClearChar() noexcept;
 
-    static void Clear() noexcept;
+    void Clear() noexcept;
 
-    // autorepeat control
-    static void EnableAutorepeat() noexcept;
+    void OnKeyPressed(unsigned char keycode) noexcept;
 
-    static void DisableAutorepeat() noexcept;
+    void OnKeyReleased(unsigned char keycode) noexcept;
 
-    [[nodiscard]] static bool IsAutorepeatEnabled() noexcept;
+    void OnChar(char character) noexcept;
 
-    static void OnKeyPressed(unsigned char keycode) noexcept;
-
-    static void OnKeyReleased(unsigned char keycode) noexcept;
-
-    static void OnChar(char character) noexcept;
-
-    static void ClearState() noexcept;
+    void ClearState() noexcept;
 
 private:
-    static bool autorepeatEnabled;
-    static constexpr unsigned int nKeys = 256u;
-    static constexpr unsigned int bufferSize = 16u;
-    static std::bitset<nKeys> keyStates;
-    static std::queue<char> charBuffer;
+    unsigned int nKeys_ = 256u;
+    unsigned int bufferSize_ = 16u;
+    std::bitset<256> keyStates_;
+    std::queue<char> charBuffer_;
 };

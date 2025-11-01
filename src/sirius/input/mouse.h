@@ -10,6 +10,8 @@
 namespace sirius {
 class Mouse {
 public:
+    Mouse();
+
     int GetX() noexcept;
 
     int GetY() noexcept;

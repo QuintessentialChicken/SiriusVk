@@ -1,58 +1,43 @@
 #include "Keyboard.h"
 
-bool Keyboard::autorepeatEnabled = false;
-std::bitset<256> Keyboard::keyStates;
-std::queue<char> Keyboard::charBuffer;
 
 bool Keyboard::IsKeyPressed(unsigned char keycode) noexcept {
-    return keyStates[keycode];
+    return keyStates_[keycode];
 }
 
 char Keyboard::ReadChar() noexcept {
-    if (charBuffer.empty()) {
+    if (charBuffer_.empty()) {
         return {};
     }
-    const char charcode = charBuffer.front();
-    charBuffer.pop();
+    const char charcode = charBuffer_.front();
+    charBuffer_.pop();
     return charcode;
 }
 
 bool Keyboard::CharIsEmpty() noexcept {
-    return charBuffer.empty();
+    return charBuffer_.empty();
 }
 
 void Keyboard::ClearChar() noexcept {
-    charBuffer = std::queue<char>();
+    charBuffer_ = std::queue<char>();
 }
 
 void Keyboard::Clear() noexcept {
     ClearChar();
 }
 
-void Keyboard::EnableAutorepeat() noexcept {
-    autorepeatEnabled = true;
-}
-
-void Keyboard::DisableAutorepeat() noexcept {
-    autorepeatEnabled = false;
-}
-
-bool Keyboard::IsAutorepeatEnabled() noexcept {
-    return autorepeatEnabled;
-}
-
 void Keyboard::OnKeyPressed(unsigned char keycode) noexcept {
-    keyStates[keycode] = true;
+    keyStates_[keycode] = true;
 }
 
 void Keyboard::OnKeyReleased(unsigned char keycode) noexcept {
-    keyStates[keycode] = false;
+    keyStates_[keycode] = false;
 }
 
 void Keyboard::ClearState() noexcept {
-    keyStates.reset();
+    keyStates_.reset();
 }
 
 void Keyboard::OnChar(char character) noexcept {
-    charBuffer.emplace(character);
+    charBuffer_.emplace(character);
 }
