@@ -50,6 +50,8 @@ public:
 
     static void Subscribe(const std::function<void(const InputEvent&)>& callback);
 
+    static void Notify();
+
     LRESULT CALLBACK ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     static std::pair<float, float> GetMouseCoords();
@@ -64,6 +66,7 @@ private:
     std::vector<Mouse> mice_;
     std::vector<Keyboard> keyboards_;
 
+    std::vector<InputEvent> events_;
     std::vector<std::function<void(const InputEvent&)> > callbacks_;
 };
 } // sirius

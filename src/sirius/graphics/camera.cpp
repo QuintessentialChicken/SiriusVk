@@ -16,7 +16,6 @@ void Camera::Init() {
 void Camera::ProcessWindowEvent(InputEvent event) {
     std::visit( Overload{
         [this](MouseMoveEvent e) {
-            std::cout << e.x << ", " << e.y << std::endl;
             yaw_ += static_cast<float>(e.x) / 200000.0f;
             pitch_ -= static_cast<float>(e.y) / 200000.0f;
 

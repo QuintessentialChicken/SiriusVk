@@ -25,6 +25,15 @@ void InputManager::Subscribe(const std::function<void(const InputEvent&)>& callb
     Get().callbacks_.push_back(callback);
 }
 
+void InputManager::Notify() {
+    std::cout << "Processing Events\n";
+    for (int i = 0; i < std::min(static_cast<int>(Get().events_.size()), 10); ++i) {
+        for (auto& callback : Get().callbacks_) {
+            callback(Get().events_.at(i));
+        }
+    }
+}
+
 LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     InputEvent event;
     switch (msg) {
@@ -45,20 +54,19 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
         /*********** END KEYBOARD MESSAGES ***********/
         /************** MOUSE MESSAGES ***************/
         case WM_INPUT: {
-            UINT size;
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
-            LPBYTE buffer = new BYTE[size];
-
-            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER)) == size)
-            {
-                RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer);
-                if (raw->header.dwType == RIM_TYPEMOUSE) {
-                    LONG dx = raw->data.mouse.lLastX;
-                    LONG dy = -raw->data.mouse.lLastY;
-                    event.type = InputEvent::Type::kMouseMove;
-                    event.data = MouseMoveEvent(dx, dy);
-                }
-            }
+            // UINT size;
+            // GetRawInputData((HRAWINPUT) lParam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
+            // LPBYTE buffer = new BYTE[size];
+            //
+            // if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER)) == size) {
+            //     RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer);
+            //     if (raw->header.dwType == RIM_TYPEMOUSE) {
+            //         LONG dx = raw->data.mouse.lLastX;
+            //         LONG dy = -raw->data.mouse.lLastY;
+            //         event.type = InputEvent::Type::kMouseMove;
+            //         event.data = MouseMoveEvent(dx, dy);
+            //     }
+            // }
             break;
         }
         case WM_MOUSEMOVE: {
@@ -114,9 +122,7 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
         default:
             return DefWindowProc(hWnd, msg, wParam, lParam);
     }
-    for (auto& callback : callbacks_) {
-        callback(event);
-    }
+    events_.push_back(event);
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
