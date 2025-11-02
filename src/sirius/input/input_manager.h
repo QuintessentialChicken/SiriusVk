@@ -61,10 +61,15 @@ private:
 
     Mouse GetActiveMouse();
 
+
+    int mousedDeltaX_;
+    int mousedDeltaY_;
+
     int activeMouse_{0};
     int activeKeyboard_{0};
     std::vector<Mouse> mice_;
     std::vector<Keyboard> keyboards_;
+    LPBYTE buffer_[sizeof(RAWINPUT)];
 
     std::vector<InputEvent> events_;
     std::vector<std::function<void(const InputEvent&)> > callbacks_;

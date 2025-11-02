@@ -13,7 +13,7 @@ Mouse::Mouse() {
     r.usUsage = 0x2;
     r.dwFlags = RIDEV_NOLEGACY;
     r.hwndTarget = hwndMain;
-    RegisterRawInputDevices(&r, 1, sizeof(r));
+    // RegisterRawInputDevices(&r, 1, sizeof(r));
 }
 
 int Mouse::GetX() noexcept {

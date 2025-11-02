@@ -42,6 +42,7 @@ Fsm::FsmReturn App::Shutdown() {
 }
 
 Fsm::FsmReturn App::RunGame() {
+    frame_++;
     MSG message;
     std::optional<int> exitCode = {};
     if (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {

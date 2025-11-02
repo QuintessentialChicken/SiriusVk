@@ -16,17 +16,17 @@ void Camera::Init() {
 void Camera::ProcessWindowEvent(InputEvent event) {
     std::visit( Overload{
         [this](MouseMoveEvent e) {
-            yaw_ += static_cast<float>(e.x) / 200000.0f;
-            pitch_ -= static_cast<float>(e.y) / 200000.0f;
+            yaw_ += static_cast<float>(e.x) / 500.0f;
+            pitch_ -= static_cast<float>(e.y) / 500.0f;
 
         },
         [](MouseWheelEvent e) {},
         [this, event](KeyEvent e) {
             if (event.type == InputEvent::Type::kKeyDown) {
-                if (e.key == 'W') velocity_.z = -1;
-                if (e.key == 'S') velocity_.z = 1;
-                if (e.key == 'A') velocity_.x = -1;
-                if (e.key == 'D') velocity_.x = 1;
+                if (e.key == 'W') velocity_.z = 1;
+                if (e.key == 'S') velocity_.z = -1;
+                if (e.key == 'A') velocity_.x = 1;
+                if (e.key == 'D') velocity_.x = -1;
             }
             if (event.type == InputEvent::Type::kKeyUp) {
                 if (e.key == 'W') velocity_.z = 0;

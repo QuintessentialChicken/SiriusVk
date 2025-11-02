@@ -25,5 +25,6 @@ public:
     FsmReturn RunGame();
 
 private:
+    int frame_{0};
     bool isSystemInitialized_ = false;
 };

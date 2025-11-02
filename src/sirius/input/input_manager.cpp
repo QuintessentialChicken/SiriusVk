@@ -10,10 +10,14 @@
 #include "window/wndProc.h"
 
 namespace sirius {
+POINT screenCenter = {static_cast<long>(windowWidth / 2), static_cast<long>(windowHeight / 2)};
+
+
 LRESULT CALLBACK InputWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) { return InputManager::Get().ProcessMessage(hWnd, msg, wParam, lParam); }
 
 void InputManager::Init() {
     windowProc = InputWindowProc;
+    ShowCursor(false);
 }
 
 std::pair<float, float> InputManager::GetMouseCoords() {
@@ -26,70 +30,59 @@ void InputManager::Subscribe(const std::function<void(const InputEvent&)>& callb
 }
 
 void InputManager::Notify() {
-    std::cout << "Processing Events\n";
-    for (int i = 0; i < std::min(static_cast<int>(Get().events_.size()), 10); ++i) {
+    Get().events_.push_back({.type = InputEvent::Type::kMouseMove, .data = MouseMoveEvent{Get().mousedDeltaX_, Get().mousedDeltaY_}});
+    for (int i = std::min(static_cast<int>(Get().events_.size()) - 1, 10); i >= 0; --i) {
         for (auto& callback : Get().callbacks_) {
             callback(Get().events_.at(i));
         }
     }
+    Get().events_.clear();
 }
 
 LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    InputEvent event;
     switch (msg) {
         /*********** KEYBOARD MESSAGES ***********/
         case WM_SYSKEYDOWN:
-        case WM_KEYDOWN:
+        case WM_KEYDOWN: {
+            InputEvent event;
             event.type = InputEvent::Type::kKeyDown;
             event.data = KeyEvent{static_cast<unsigned char>(wParam), true};
+            events_.push_back(event);
             break;
+        }
         case WM_SYSKEYUP:
-        case WM_KEYUP:
+        case WM_KEYUP: {
+            InputEvent event;
             event.type = InputEvent::Type::kKeyUp;
             event.data = KeyEvent{static_cast<unsigned char>(wParam), false};
+            events_.push_back(event);
             break;
+        }
         case WM_CHAR:
 
             break;
-        /*********** END KEYBOARD MESSAGES ***********/
-        /************** MOUSE MESSAGES ***************/
+            /*********** END KEYBOARD MESSAGES ***********/
+            /************** MOUSE MESSAGES ***************/
         case WM_INPUT: {
             // UINT size;
             // GetRawInputData((HRAWINPUT) lParam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
-            // LPBYTE buffer = new BYTE[size];
             //
-            // if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER)) == size) {
-            //     RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer);
+            // if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, buffer_, &size, sizeof(RAWINPUTHEADER)) == size) {
+            //     RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer_);
             //     if (raw->header.dwType == RIM_TYPEMOUSE) {
-            //         LONG dx = raw->data.mouse.lLastX;
-            //         LONG dy = -raw->data.mouse.lLastY;
-            //         event.type = InputEvent::Type::kMouseMove;
-            //         event.data = MouseMoveEvent(dx, dy);
+            //         mousedDeltaX_ = raw->data.mouse.lLastX;
+            //         mousedDeltaY_ = -raw->data.mouse.lLastY;
             //     }
             // }
             break;
         }
         case WM_MOUSEMOVE: {
-            // if (const auto [x, y] = MAKEPOINTS(lParam); x >= 0 && x < windowWidth && y >= 0 && y < windowHeight) {
-            //     GetActiveMouse().SetPos(x, y);
-            //     if (!GetActiveMouse().IsInWindow()) {
-            //         SetCapture(hWnd);
-            //         GetActiveMouse().SetIsInWindow(true);
-            //     }
-            //     event.type = InputEvent::Type::kMouseMove;
-            //     event.data = MouseMoveEvent{x, y};
-            // }
-            // // not in client -> log move / maintain capture if button down
-            // else {
-            //     if (wParam & (MK_LBUTTON | MK_RBUTTON)) {
-            //         GetActiveMouse().SetPos(x, y);
-            //     }
-            //     // button up -> release capture / log event for leaving
-            //     else {
-            //         ReleaseCapture();
-            //         GetActiveMouse().SetIsInWindow(false);
-            //     }
-            // }
+            const auto [x, y] = MAKEPOINTS(lParam);
+            mousedDeltaX_ = x - screenCenter.x;
+            mousedDeltaY_ = y - screenCenter.y;
+            POINT p = screenCenter;
+            ClientToScreen(hWnd, &p);
+            SetCursorPos(p.x, p.y);
             break;
         }
         case WM_LBUTTONDOWN: {
@@ -118,11 +111,10 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
             GetActiveMouse().SetWheelDelta(delta);
             break;
         }
-        /************ END MOUSE MESSAGES *************/
+            /************ END MOUSE MESSAGES *************/
         default:
             return DefWindowProc(hWnd, msg, wParam, lParam);
     }
-    events_.push_back(event);
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
@@ -134,4 +126,4 @@ InputManager::InputManager() {
 Mouse InputManager::GetActiveMouse() {
     return mice_.at(activeMouse_);
 }
-} // sirius
+}
