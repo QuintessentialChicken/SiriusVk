@@ -7,8 +7,10 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "descriptors.h"
 #include "types.h"
 
 namespace sirius {
@@ -21,7 +23,7 @@ struct GltfMaterial {
 struct GeoSurface {
     uint32_t startIndex;
     uint32_t count;
-	std::shared_ptr<GltfMaterial> material;
+    std::shared_ptr<GltfMaterial> material;
 };
 
 struct MeshAsset {
@@ -30,6 +32,32 @@ struct MeshAsset {
     GpuMeshBuffers meshBuffers;
 };
 
-std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(sirius::SrsVkRenderer* engine, std::filesystem::path filePath);
+class LoadedGltf : public IRenderable {
+public:
+    ~LoadedGltf() override { ClearAll(); };
 
+    void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+
+    // storage for all the data on a given glTF file
+    std::unordered_map<std::string, std::shared_ptr<MeshAsset> > meshes_;
+    std::unordered_map<std::string, std::shared_ptr<Node> > nodes_;
+    std::unordered_map<std::string, AllocatedImage> images_;
+    std::unordered_map<std::string, std::shared_ptr<GltfMaterial> > materials_;
+
+    // nodes that don't have a parent, for iterating through the file in tree order
+    std::vector<std::shared_ptr<Node> > topNodes_;
+
+    std::vector<VkSampler> samplers_;
+
+    DescriptorAllocatorGrowable descriptorPool_;
+
+    AllocatedBuffer materialDataBuffer_;
+
+    SrsVkRenderer* creator_;
+
+private:
+    void ClearAll();
+};
+
+std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(SrsVkRenderer* engine, std::filesystem::path filePath);
 }
