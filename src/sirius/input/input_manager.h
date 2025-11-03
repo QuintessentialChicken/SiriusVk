@@ -61,6 +61,7 @@ private:
 
     Mouse GetActiveMouse();
 
+    bool captureMouse_{true};
 
     int mousedDeltaX_;
     int mousedDeltaY_;

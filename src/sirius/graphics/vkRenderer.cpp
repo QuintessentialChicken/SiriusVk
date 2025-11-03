@@ -517,10 +517,10 @@ void SrsVkRenderer::SpawnImguiWindow() {
 
     ImGui::NewFrame();
 
-    if (ImGui::Begin("background")) {
+    if (ImGui::Begin("Settings")) {
+        ImGui::Text("Press Escape to use the mouse, Right-click to capture mouse");
         float framerate = ImGui::GetIO().Framerate;
         ImGui::Text("Framerate: %f", framerate);
-        ImGui::SliderFloat("Render Scale", &renderScale_, 0.3f, 1.f);
 
         ComputeEffect& selected = computeEffects_[currentEffect_];
 

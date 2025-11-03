@@ -44,6 +44,14 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
         /*********** KEYBOARD MESSAGES ***********/
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN: {
+            if (wParam == VK_ESCAPE) {
+                captureMouse_ = false;
+                while (ShowCursor(true) < 0) {};
+                events_.clear();
+                mousedDeltaX_ = 0;
+                mousedDeltaY_ = 0;
+                break;
+            }
             InputEvent event;
             event.type = InputEvent::Type::kKeyDown;
             event.data = KeyEvent{static_cast<unsigned char>(wParam), true};
@@ -61,33 +69,20 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
         case WM_CHAR:
 
             break;
-            /*********** END KEYBOARD MESSAGES ***********/
-            /************** MOUSE MESSAGES ***************/
-        case WM_INPUT: {
-            // UINT size;
-            // GetRawInputData((HRAWINPUT) lParam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
-            //
-            // if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, buffer_, &size, sizeof(RAWINPUTHEADER)) == size) {
-            //     RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer_);
-            //     if (raw->header.dwType == RIM_TYPEMOUSE) {
-            //         mousedDeltaX_ = raw->data.mouse.lLastX;
-            //         mousedDeltaY_ = -raw->data.mouse.lLastY;
-            //     }
-            // }
-            break;
-        }
+        /*********** END KEYBOARD MESSAGES ***********/
+        /************** MOUSE MESSAGES ***************/
         case WM_MOUSEMOVE: {
-            const auto [x, y] = MAKEPOINTS(lParam);
-            mousedDeltaX_ = x - screenCenter.x;
-            mousedDeltaY_ = y - screenCenter.y;
-            POINT p = screenCenter;
-            ClientToScreen(hWnd, &p);
-            SetCursorPos(p.x, p.y);
+            if (captureMouse_) {
+                const auto [x, y] = MAKEPOINTS(lParam);
+                mousedDeltaX_ = x - screenCenter.x;
+                mousedDeltaY_ = y - screenCenter.y;
+                POINT p = screenCenter;
+                ClientToScreen(hWnd, &p);
+                SetCursorPos(p.x, p.y);
+            }
             break;
         }
         case WM_LBUTTONDOWN: {
-            const auto [x, y]{MAKEPOINTS(lParam)};
-            GetActiveMouse().SetLeftIsPressed(true);
             break;
         }
         case WM_LBUTTONUP: {
@@ -96,8 +91,10 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
             break;
         }
         case WM_RBUTTONDOWN: {
-            const auto [x, y]{MAKEPOINTS(lParam)};
-            GetActiveMouse().SetRightIsPressed(true);
+            if (const auto [x, y] = MAKEPOINTS(lParam); x >= 0 && x < windowWidth && y >= 0 && y < windowHeight) {
+                ShowCursor(false);
+                captureMouse_ = true;
+            }
             break;
         }
         case WM_RBUTTONUP: {
@@ -111,7 +108,7 @@ LRESULT CALLBACK InputManager::ProcessMessage(HWND hWnd, UINT msg, WPARAM wParam
             GetActiveMouse().SetWheelDelta(delta);
             break;
         }
-            /************ END MOUSE MESSAGES *************/
+        /************ END MOUSE MESSAGES *************/
         default:
             return DefWindowProc(hWnd, msg, wParam, lParam);
     }

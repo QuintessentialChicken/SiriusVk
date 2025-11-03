@@ -27,12 +27,16 @@ void Camera::ProcessWindowEvent(InputEvent event) {
                 if (e.key == 'S') velocity_.z = -1;
                 if (e.key == 'A') velocity_.x = 1;
                 if (e.key == 'D') velocity_.x = -1;
+                if (e.key == VK_SPACE) velocity_.y = -1;
+                if (e.key == VK_CONTROL) velocity_.y = 1;
             }
             if (event.type == InputEvent::Type::kKeyUp) {
                 if (e.key == 'W') velocity_.z = 0;
                 if (e.key == 'S') velocity_.z = 0;
                 if (e.key == 'A') velocity_.x = 0;
                 if (e.key == 'D') velocity_.x = 0;
+                if (e.key == VK_SPACE) velocity_.y = 0;
+                if (e.key == VK_CONTROL) velocity_.y = 0;
             }
         }
     }, event.data);
