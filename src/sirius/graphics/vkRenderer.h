@@ -106,6 +106,12 @@ public:
 
     void Shutdown();
 
+    AllocatedImage whiteImage_{};
+    AllocatedImage blackImage_{};
+    AllocatedImage greyImage_{};
+    AllocatedImage errorCheckerboardImage_{};
+
+    VkDevice device_ = VK_NULL_HANDLE;
 private:
     const std::vector<const char*> deviceExtensions_ = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -204,7 +210,6 @@ private:
 
     VkInstance instance_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
-    VkDevice device_ = VK_NULL_HANDLE;
     VkSurfaceKHR surface_ = VK_NULL_HANDLE;
     VkQueue graphicsQueue_ = VK_NULL_HANDLE;
     VkQueue presentQueue_ = VK_NULL_HANDLE;
@@ -238,10 +243,7 @@ private:
     GpuMeshBuffers rectangle_{};
     std::vector<std::shared_ptr<MeshAsset> > testMeshes_{};
 
-    AllocatedImage whiteImage_{};
-    AllocatedImage blackImage_{};
-    AllocatedImage greyImage_{};
-    AllocatedImage errorCheckerboardImage_{};
+
 
     VkDescriptorSetLayout singleImageDescriptorLayout_{};
 

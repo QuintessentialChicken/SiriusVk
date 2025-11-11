@@ -1,4 +1,4 @@
-add_library(input STATIC
+add_library(input
         input_manager.cpp
         input_manager.h
         keyboard.cpp
@@ -7,6 +7,4 @@ add_library(input STATIC
         mouse.h
 )
 
-target_include_directories(input PRIVATE ${CMAKE_SOURCE_DIR}/sirius)
-target_link_libraries(input PRIVATE vma)
-
+target_link_libraries(input PUBLIC graphics)

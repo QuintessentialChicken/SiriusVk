@@ -11,3 +11,7 @@ add_library(third-party
 )
 
 add_subdirectory(fastgltf)
+
+target_include_directories(third-party PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)

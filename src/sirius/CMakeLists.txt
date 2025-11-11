@@ -10,6 +10,8 @@ target_link_libraries(engine INTERFACE
         Vulkan::Vulkan
 )
 
+target_include_directories(engine INTERFACE ${CMAKE_SOURCE_DIR}/sirius)
+
 add_subdirectory(core)
 add_subdirectory(graphics)
 add_subdirectory(input)

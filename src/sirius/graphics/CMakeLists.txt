@@ -1,4 +1,3 @@
-
 add_library(graphics STATIC
         vkRenderer.cpp
         vkRenderer.h
@@ -18,8 +17,10 @@ add_library(graphics STATIC
         Camera.h
 )
 
-target_include_directories(graphics PUBLIC ${CMAKE_SOURCE_DIR}/sirius)
-target_include_directories(graphics PUBLIC "$ENV{VULKAN_SDK}/Include")
-target_include_directories(graphics PUBLIC "$ENV{VULKAN_SDK}/Include/glm")
-target_include_directories(graphics PRIVATE ${CMAKE_SOURCE_DIR}/sirius/third-party/imgui)
-target_link_libraries(graphics PUBLIC Vulkan::Vulkan fmt::fmt vma fastgltf::fastgltf)
+target_include_directories(graphics PUBLIC
+        ${CMAKE_SOURCE_DIR}/sirius
+        ${CMAKE_SOURCE_DIR}/sirius/third-party/imgui
+        "$ENV{VULKAN_SDK}/Include"
+        "$ENV{VULKAN_SDK}/Include/glm"
+)
+target_link_libraries(graphics PUBLIC Vulkan::Vulkan fmt::fmt vma fastgltf::fastgltf third-party)
