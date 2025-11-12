@@ -61,7 +61,7 @@ private:
 };
 
 std::optional<std::vector<std::shared_ptr<MeshAsset> > > LoadGltfMeshes(SrsVkRenderer* engine, std::filesystem::path filePath);
-std::optional<std::shared_ptr<LoadedGltf>> LoadGltf(SrsVkRenderer* engine,std::string_view filePath);
+std::optional<std::shared_ptr<LoadedGltf>> LoadGltf(SrsVkRenderer* renderer,std::string_view filePath);
 
 VkFilter ExtractFilter(fastgltf::Filter filter);
 VkSamplerMipmapMode ExtractMipMapMode(fastgltf::Filter filter);

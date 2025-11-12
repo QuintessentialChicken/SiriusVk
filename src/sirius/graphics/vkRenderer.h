@@ -22,7 +22,7 @@
 namespace sirius {
 class DeletionQueue {
 public:
-    std::deque<std::function<void()> > deleters_;
+    std::deque<std::function<void()>> deleters_;
 
     void PushFunction(std::function<void()>&& function) {
         deleters_.push_back(function);
@@ -100,6 +100,8 @@ public:
 
     GpuMeshBuffers UploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
+    AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+
     void ResizeSwapChain();
 
     bool ResizeRequested();
@@ -112,6 +114,11 @@ public:
     AllocatedImage errorCheckerboardImage_{};
 
     VkDevice device_ = VK_NULL_HANDLE;
+
+    VkSampler defaultSamplerLinear_{};
+    VkSampler defaultSamplerNearest_{};
+    GltfMetallicRoughness metalRoughMaterial_{};
+
 private:
     const std::vector<const char*> deviceExtensions_ = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -194,7 +201,6 @@ private:
 
     void UpdateScene();
 
-    AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
     void DestroyBuffer(const AllocatedBuffer& buffer) const;
 
@@ -241,14 +247,12 @@ private:
     VkPipelineLayout meshPipelineLayout_{};
 
     GpuMeshBuffers rectangle_{};
-    std::vector<std::shared_ptr<MeshAsset> > testMeshes_{};
-
+    std::vector<std::shared_ptr<MeshAsset>> testMeshes_{};
 
 
     VkDescriptorSetLayout singleImageDescriptorLayout_{};
 
-    VkSampler defaultSamplerLinear_{};
-    VkSampler defaultSamplerNearest_{};
+
 
     bool resizeRequested_ = false;
 
@@ -266,10 +270,10 @@ private:
     VkPipeline trianglePipeline_{};
 
     MaterialInstance defaultMaterialData_{};
-    GltfMetallicRoughness metalRoughMaterial_{};
 
     DrawContext mainDrawContext_;
     std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes_;
+    std::unordered_map<std::string, std::shared_ptr<LoadedGltf>> loadedScenes_;
 
     Camera defaultCamera_{};
 

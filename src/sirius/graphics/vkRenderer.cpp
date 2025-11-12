@@ -341,18 +341,18 @@ void SrsVkRenderer::UpdateScene() {
     mainDrawContext_.opaqueRenderObjects.clear();
 
     // loadedNodes_.at("Suzanne")->Draw(glm::mat4{1.0f}, mainDrawContext_);
-    for (int x = -3; x < 4; x++) {
-        for (int y = -3; y < 4; y++) {
-            for (int z = -3; z < 4; z++) {
-                if (x == 0 && y == 0 && z == 0) {continue;}
-                glm::mat4 scale = glm::scale(glm::vec3{0.2});
-                glm::mat4 translation = glm::translate(glm::vec3{x * 3, y * 3, z * 3});
-
-                loadedNodes_["Cube"]->Draw(translation * scale, mainDrawContext_);
-            }
-        }
-
-    }
+    // for (int x = -3; x < 4; x++) {
+    //     for (int y = -3; y < 4; y++) {
+    //         for (int z = -3; z < 4; z++) {
+    //             if (x == 0 && y == 0 && z == 0) {continue;}
+    //             glm::mat4 scale = glm::scale(glm::vec3{0.2});
+    //             glm::mat4 translation = glm::translate(glm::vec3{x * 3, y * 3, z * 3});
+    //
+    //             loadedNodes_["Cube"]->Draw(translation * scale, mainDrawContext_);
+    //         }
+    //     }
+    //
+    // }
 
     sceneData_.viewMatrix = defaultCamera_.GetViewMatrix();
     sceneData_.projectionMatrix = glm::perspectiveRH_ZO(glm::radians(70.0f), static_cast<float>(drawExtent_.width) / static_cast<float>(drawExtent_.height), 10000.0f, 0.1f);
@@ -362,6 +362,8 @@ void SrsVkRenderer::UpdateScene() {
     sceneData_.ambientColor = glm::vec4(0.1f);
     sceneData_.sunlightColor = glm::vec4(1.0f);
     sceneData_.sunlightDirection = glm::vec4(0, 1, 0.5f, 1.0f);
+
+    loadedScenes_.at("structure")->Draw(glm::mat4{ 1.0f }, mainDrawContext_);
 }
 
 AllocatedBuffer SrsVkRenderer::CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) {
@@ -541,6 +543,8 @@ void SrsVkRenderer::SpawnImguiWindow() {
 void SrsVkRenderer::Shutdown() {
     if (isInitialized_) {
         vkDeviceWaitIdle(device_);
+
+        loadedScenes_.clear();
 
         for (auto& frame : frames_) {
             vkDestroyCommandPool(device_, frame.commandPool, nullptr);
@@ -1418,6 +1422,11 @@ void SrsVkRenderer::InitDefaultData() {
 
         loadedNodes_[mesh->name] = std::move(newNode);
     }
+
+    std::string structurePath = { "../../resources/structure.glb" };
+    auto structureFile = LoadGltf(this, structurePath);
+    assert(structureFile.has_value());
+    loadedScenes_["structure"] = *structureFile;
 }
 
 void SrsVkRenderer::InitImgui() {
