@@ -247,7 +247,7 @@ private:
     VkPipelineLayout meshPipelineLayout_{};
 
     GpuMeshBuffers rectangle_{};
-    std::vector<std::shared_ptr<MeshAsset>> testMeshes_{};
+    std::vector<std::shared_ptr<LoadedGltf>> testMeshes_{};
 
 
     VkDescriptorSetLayout singleImageDescriptorLayout_{};

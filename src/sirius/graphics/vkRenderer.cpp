@@ -554,10 +554,6 @@ void SrsVkRenderer::Shutdown() {
 
             frame.deletionQueue.Flush();
         }
-        for (const auto& mesh : testMeshes_) {
-            DestroyBuffer(mesh->meshBuffers.indexBuffer);
-            DestroyBuffer(mesh->meshBuffers.vertexBuffer);
-        }
 
         for (const auto semaphore : submitSemaphores_) {
             vkDestroySemaphore(device_, semaphore, nullptr);
@@ -1384,7 +1380,6 @@ void SrsVkRenderer::InitDefaultData() {
         DestroyImage(blackImage_);
         DestroyImage(errorCheckerboardImage_);
     });
-    testMeshes_ = LoadGltfMeshes(this, "../../resources/basicmesh.glb").value();
 
     GltfMetallicRoughness::MaterialResources materialResources{};
     //default the material textures
@@ -1409,19 +1404,6 @@ void SrsVkRenderer::InitDefaultData() {
     materialResources.dataBufferOffset = 0;
 
     defaultMaterialData_ = metalRoughMaterial_.WriteMaterial(device_, MaterialPass::kMainColor, materialResources, globalDescriptorAllocator_);
-
-    for (auto& mesh : testMeshes_) {
-        std::shared_ptr newNode{std::make_shared<MeshNode>()};
-        newNode->mesh_ = mesh;
-        newNode->localTransform_ = glm::mat4{1.0f};
-        newNode->worldTransform_ = glm::mat4{1.0f};
-
-        for (auto& surface : newNode->mesh_->surfaces) {
-            surface.material = std::make_shared<GltfMaterial>(defaultMaterialData_);
-        }
-
-        loadedNodes_[mesh->name] = std::move(newNode);
-    }
 
     std::string structurePath = { "../../resources/structure.glb" };
     auto structureFile = LoadGltf(this, structurePath);
